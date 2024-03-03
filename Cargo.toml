@@ -4,4 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sbi-rt = {}
+sbi-rt = "0.0.3"
+
+[lib]
+crate-type = ["staticlib"]

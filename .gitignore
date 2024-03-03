@@ -2,3 +2,5 @@
 /testspace
 /.vscode
 Cargo.lock
+*.o
+/build

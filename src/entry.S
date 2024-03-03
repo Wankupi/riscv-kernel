@@ -1,3 +1,5 @@
+    .extern kmain
+
     .section .text.entry
     .globl _start
 _start:
