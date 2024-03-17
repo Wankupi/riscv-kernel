@@ -12,35 +12,38 @@ SECTIONS
         *(.text.entry)
         *(.text .text.*)
     }
+    etext = .;
 
     . = ALIGN(4K);
-    etext = .;
     srodata = .;
     .rodata : {
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
     }
+    erodata = .;
 
     . = ALIGN(4K);
-    erodata = .;
     sdata = .;
     .data : {
         *(.data .data.*)
         *(.sdata .sdata.*)
     }
+    edata = .;
 
     . = ALIGN(4K);
-    edata = .;
+    sbss = .;
     .bss : {
         *(.bss.stack)
         sbss = .;
         *(.bss .bss.*)
         *(.sbss .sbss.*)
     }
-
-    . = ALIGN(4K);
     ebss = .;
+
     ekernel = .;
+    . = ALIGN(4K);
+
+    uart_base_addr = 0x10000000;
 
     /DISCARD/ : {
         *(.eh_frame)

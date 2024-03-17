@@ -1,28 +1,45 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
+mod allocator;
 mod arch;
+mod driver;
 mod lang_items;
+mod mm;
+mod print;
+
+pub use crate::arch::shutdown;
+
+use crate::arch::trap::trap_init;
+
+use allocator::SimpleAllocator;
+use mm::declare::{PhysAddr, PhysPageNum};
 
 #[no_mangle]
-pub static dtb_addr: usize = 0x12345678;
+pub static mut dtb_addr: usize = 0;
 
-fn put_hex(mut n : usize) {
-	let mut s = [0u8; 16];
-	let mut i = 0;
-	while i < 16 {
-		let d = n & 0xf;
-		s[15 - i] = if d < 10 { b'0' + d as u8 } else { b'a' + (d - 10) as u8 };
-		i += 1;
-		n >>= 4;
-	}
-	arch::printk(&s);
+extern "C" {
+	fn skernel();
+	fn ekernel();
+	fn uart_base_addr();
 }
 
+#[global_allocator]
+static ALLOCATOR: SimpleAllocator = SimpleAllocator::new();
+
 #[no_mangle]
-pub extern "C" fn kmain() -> ! {
-	let s: &'static str = "Hello, world!\n";
-	arch::printk(s.as_bytes());
-	put_hex(dtb_addr);
-	arch::shutdown();
+pub extern "C" fn kmain() {
+	driver::uart::uart_device.init(uart_base_addr as usize);
+	print!("\x1b[32mKernel start.\x1b[0m\n");
+	print!("hah");
+	// trap_init();
+	// ALLOCATOR.init(ekernel as usize);
+	// print!("start init vm\n");
+	// mm::declare::init_vm(
+	// 	PhysPageNum::from(PhysAddr::from(skernel as usize)),
+	// 	PhysPageNum::from(PhysAddr::from(ekernel as usize)),
+	// );
+	shutdown();
 }
