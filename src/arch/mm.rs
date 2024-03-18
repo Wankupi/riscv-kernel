@@ -6,10 +6,11 @@ pub const PPN_WIDTH: usize = PA_WIDTH - PAGE_SIZE_BITS;
 pub const PPN_SIZE: usize = 1 << PPN_WIDTH;
 pub const VT_MAP_SIZE: usize = 4096 / 8;
 
+use core::ops;
 use bitflags::bitflags;
-use crate::mm::declare::PhysPageNum;
 
 bitflags! {
+	#[derive(Copy, Clone)]
 	pub struct PTE: usize {
 		const V = 1 << 0;
 		const R = 1 << 1;
@@ -30,22 +31,26 @@ impl PageTableEntry {
 	pub fn get_valid(&self) -> bool {
 		self.bits & 1 != 0
 	}
-	pub fn set_flags(&mut self, flags: PTE) {
-		self.bits = (self.bits & !0xff) | flags.bits();
-	}
-	pub fn get_ppn(&self) -> PhysPageNum {
-		PhysPageNum(self.bits >> 10 & ((1 << 44) - 1))
-	}
-	pub fn set_ppn(&mut self, ppn: PhysPageNum) {
-		self.bits = (self.bits & !((1 << 44) - 1) << 10) | (ppn.0 << 10);
-	}
-	pub fn enable(&mut self) {
-		self.bits |= 1;
-	}
-	pub fn disable(&mut self) {
-		self.bits &= !1;
+	pub fn get_ppn(&self) -> usize {
+		self.bits >> 10 & ((1 << 44) - 1)
 	}
 	pub fn clear(&mut self) {
 		self.bits = 0;
+	}
+	pub fn from_phys_addr(addr: usize) -> Self {
+		Self { bits: (addr >> PAGE_SIZE_BITS) << 10 }
+	}
+}
+
+impl ops::BitOr<PTE> for PageTableEntry {
+	type Output = Self;
+	fn bitor(self, rhs: PTE) -> Self {
+		Self { bits: self.bits | rhs.bits() }
+	}
+}
+impl ops::BitOr<usize> for PageTableEntry {
+	type Output = Self;
+	fn bitor(self, rhs: usize) -> Self {
+		Self { bits: self.bits | rhs }
 	}
 }

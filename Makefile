@@ -56,7 +56,7 @@ $(OS_DUMP): $(OS_ELF)
 dump: $(OS_DUMP)
 
 QEMU_RUN_ARGS = -nographic -machine virt -m 128M
-# QEMU_RUN_ARGS += -bios /home/wkp/codes/kernel/build/sbi.bin
+QEMU_RUN_ARGS += -bios /home/wkp/codes/kernel/build/sbi.bin
 
 
 run: $(OS_BIN) dump

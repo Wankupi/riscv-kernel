@@ -1,7 +1,7 @@
 use core::panic::PanicInfo;
-use crate::print;
+use crate::error;
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    print!("Panic: {}\n", _info);
+    error!("Panic: {}\n", _info);
     loop {}
 }

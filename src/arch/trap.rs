@@ -1,7 +1,7 @@
 use core::arch::asm;
 
 use crate::arch::shutdown;
-use crate::print;
+use crate::error;
 
 fn set_trap(addr: usize) {
 	unsafe { asm!("csrw stvec, {}", in(reg) addr) }
@@ -16,9 +16,9 @@ pub fn trap_init() {
 }
 
 #[no_mangle]
-extern "C" fn solve_trap() {
+extern "C" fn kernel_trap_entry() {
 	let pc: usize;
 	unsafe { asm!("csrr {}, sepc", out(reg) pc) }
-	print!("Trap! from addr = {:x}\n", pc);
+	error!("Trap! from addr = {:x}", pc);
 	shutdown();
 }

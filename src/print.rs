@@ -1,4 +1,3 @@
-// use crate::arch::sbi::printk;
 use core::fmt::{self, Write};
 
 use crate::driver::uart::uart_device;
@@ -36,5 +35,33 @@ macro_rules! print {
 macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::print::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+    }
+}
+
+#[macro_export]
+macro_rules! error {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+		$crate::print::print(format_args!(concat!("\x1b[31m[error]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
+    }
+}
+
+#[macro_export]
+macro_rules! success {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+		$crate::print::print(format_args!(concat!("\x1b[32m[success]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
+    }
+}
+
+#[macro_export]
+macro_rules! log {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+		$crate::print::print(format_args!(concat!("\x1b[35m[log]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
+    }
+}
+
+#[macro_export]
+macro_rules! info {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+		$crate::print::print(format_args!(concat!("\x1b[36m[info]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
     }
 }

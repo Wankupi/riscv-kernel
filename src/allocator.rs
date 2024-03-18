@@ -11,6 +11,8 @@ pub struct SimpleAllocator {
 
 unsafe impl Sync for SimpleAllocator {}
 use core::sync::atomic::Ordering::SeqCst;
+
+use crate::success;
 unsafe impl GlobalAlloc for SimpleAllocator {
 	unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
 		let align = layout.align();
@@ -39,7 +41,9 @@ impl SimpleAllocator {
 	}
 	pub fn init(&self, start: usize) {
 		unsafe {
-			self.next.get().write(start);
+			use crate::arch::mm::PAGE_SIZE;
+			self.next.get().write((start + (PAGE_SIZE - 1)) & !(PAGE_SIZE - 1));
 		}
+		success!("initialize allocator");
 	}
 }
