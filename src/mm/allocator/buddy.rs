@@ -32,8 +32,8 @@ impl MemAreaStatus {
 pub struct BuddyAllocator {
 	phys_offset: usize,
 	// lists: [MemAreaStatus; MAX_ORDER],
-	lists: [MemAreaStatus; MAX_ORDER],
-	bitmaps: [Bitmap; MAX_ORDER],
+	lists: [MemAreaStatus; MAX_ORDER + 1],
+	bitmaps: [Bitmap; MAX_ORDER + 1],
 	meta: UnsafeArray<MemAreaStatus>, // point to a dynamic place, but would not be changed
 	mutex: SpinLock,
 }
@@ -42,8 +42,8 @@ impl BuddyAllocator {
 	pub const fn new() -> Self {
 		Self {
 			phys_offset: 0,
-			lists: [MemAreaStatus::new(); MAX_ORDER],
-			bitmaps: [Bitmap::new(); MAX_ORDER],
+			lists: [MemAreaStatus::new(); MAX_ORDER + 1],
+			bitmaps: [Bitmap::new(); MAX_ORDER + 1],
 			meta: UnsafeArray::new(),
 			mutex: SpinLock::new(),
 		}

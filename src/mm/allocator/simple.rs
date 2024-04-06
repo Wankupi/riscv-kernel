@@ -46,4 +46,7 @@ impl SimpleAllocator {
 		}
 		success!("initialize allocator");
 	}
+	pub fn get_current_pos(&self) -> usize {
+		unsafe { *self.next.get() }
+	}
 }

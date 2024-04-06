@@ -1,6 +1,6 @@
-use core::{arch::asm, panic};
+use core::panic;
 
-use crate::{arch::mm::*, info, success};
+use crate::{arch::mm::*, info, success, alloc};
 
 #[repr(align(4096))]
 pub struct VirtMapPage {
@@ -21,13 +21,15 @@ impl VirtMapPage {
 	}
 }
 
-use alloc::alloc::{alloc, Layout};
-static mut k_vt_ptr: *mut VirtMapPage = 0 as *mut VirtMapPage;
+use alloc::alloc::Layout;
+// static mut k_vt_ptr: *mut VirtMapPage = 0 as *mut VirtMapPage;
 
-struct KernelVirtMapConfig {
+pub struct KernelVirtMapConfig {
 	pub v2p_offset: usize,
+	pub table_phys_addr: *mut VirtMapPage
 }
-pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig { v2p_offset: 0 };
+#[no_mangle]
+pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig { v2p_offset: 0, table_phys_addr: 0 as *mut VirtMapPage };
 
 pub fn get_kernel_v2p_offset() -> usize {
 	unsafe { kvm_config.v2p_offset }
@@ -51,9 +53,10 @@ extern "C" {
 pub fn init_kvm() {
 	unsafe {
 		// kvm_config.v2p_offset = 0xffff_ffff_0000_0000;
-		k_vt_ptr = VirtMapPage::create();
+		kvm_config.v2p_offset = 0;
+		kvm_config.table_phys_addr = VirtMapPage::create();
 	}
-	let k_vt = unsafe { &mut *k_vt_ptr };
+	let k_vt = unsafe { &mut *kvm_config.table_phys_addr };
 	// kernel source code
 	kvm_map(k_vt, stext as usize, etext as usize, PTE::R | PTE::X);
 	// kernel rodata
@@ -87,20 +90,20 @@ pub fn init_kvm() {
 	);
 }
 
-pub fn kvm_start() {
-	let satp = unsafe { (8 << 60) | (k_vt_ptr as usize >> 12) };
-	extern "C" {
-		fn _kvm_start(satp: usize, offset: usize);
-	}
-	unsafe {
-		_kvm_start(satp, kvm_config.v2p_offset);
-	}
-	// unsafe {
-	// 	asm!("sfence.vma");
-	// 	asm!("csrw satp, {}", in(reg) satp);
-	// }
-	success!("set satp");
-}
+// pub fn kvm_start() {
+// 	let satp = unsafe { (8 << 60) | (k_vt_ptr as usize >> 12) };
+// 	extern "C" {
+// 		fn _kvm_start(satp: usize, offset: usize);
+// 	}
+// 	unsafe {
+// 		_kvm_start(satp, kvm_config.v2p_offset);
+// 	}
+// 	// unsafe {
+// 	// 	asm!("sfence.vma");
+// 	// 	asm!("csrw satp, {}", in(reg) satp);
+// 	// }
+// 	success!("set satp");
+// }
 
 fn entry_to_next_table(entry: &PageTableEntry) -> &mut VirtMapPage {
 	unsafe { &mut *((entry.get_ppn() << PAGE_SIZE_BITS) as *mut VirtMapPage) }
