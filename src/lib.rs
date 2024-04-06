@@ -7,12 +7,12 @@
 
 extern crate alloc;
 
-mod allocator;
 mod arch;
 mod driver;
-mod lang_items;
+mod lang;
 mod mm;
 mod print;
+mod sync;
 
 pub use crate::arch::shutdown;
 
@@ -27,9 +27,12 @@ extern "C" {
 	fn uart_base_addr();
 }
 
-use allocator::SimpleAllocator;
-#[global_allocator]
+use mm::allocator::simple::SimpleAllocator;
 static ALLOCATOR: SimpleAllocator = SimpleAllocator::new();
+
+use mm::allocator::buddy::BuddyAllocator;
+#[global_allocator]
+static mut buddy_allocator: BuddyAllocator = BuddyAllocator::new();
 
 #[no_mangle]
 pub extern "C" fn kmain() {

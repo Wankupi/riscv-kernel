@@ -1,6 +1,6 @@
 use core::{arch::asm, panic};
 
-use crate::{arch::mm::*, success};
+use crate::{arch::mm::*, info, success};
 
 #[repr(align(4096))]
 pub struct VirtMapPage {
@@ -24,6 +24,15 @@ impl VirtMapPage {
 use alloc::alloc::{alloc, Layout};
 static mut k_vt_ptr: *mut VirtMapPage = 0 as *mut VirtMapPage;
 
+struct KernelVirtMapConfig {
+	pub v2p_offset: usize,
+}
+pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig { v2p_offset: 0 };
+
+pub fn get_kernel_v2p_offset() -> usize {
+	unsafe { kvm_config.v2p_offset }
+}
+
 extern "C" {
 	fn stext();
 	fn etext();
@@ -35,10 +44,13 @@ extern "C" {
 	fn ebss();
 	fn uart_base_addr();
 	fn system_reset_addr();
+	fn skernel();
+	fn ekernel();
 }
 
 pub fn init_kvm() {
 	unsafe {
+		// kvm_config.v2p_offset = 0xffff_ffff_0000_0000;
 		k_vt_ptr = VirtMapPage::create();
 	}
 	let k_vt = unsafe { &mut *k_vt_ptr };
@@ -51,28 +63,42 @@ pub fn init_kvm() {
 	// kernel bss
 	kvm_map(k_vt, sbss as usize, ebss as usize, PTE::R | PTE::W);
 	// uart device
-	kvm_map(
+	vm_map(
 		k_vt,
 		uart_base_addr as usize,
 		uart_base_addr as usize,
+		PAGE_SIZE,
 		PTE::R | PTE::W | PTE::X,
 	);
 	// shutdown io
-	kvm_map(
+	vm_map(
 		k_vt,
 		system_reset_addr as usize,
 		system_reset_addr as usize,
+		PAGE_SIZE,
 		PTE::R | PTE::W,
 	);
 	success!("create virtual table");
+	info!(
+		"kernel [{:x}, {:x}] size = {}K",
+		skernel as usize,
+		ekernel as usize,
+		(ekernel as usize - skernel as usize) / 1024
+	);
 }
 
 pub fn kvm_start() {
 	let satp = unsafe { (8 << 60) | (k_vt_ptr as usize >> 12) };
-	unsafe {
-		asm!("sfence.vma");
-		asm!("csrw satp, {}", in(reg) satp);
+	extern "C" {
+		fn _kvm_start(satp: usize, offset: usize);
 	}
+	unsafe {
+		_kvm_start(satp, kvm_config.v2p_offset);
+	}
+	// unsafe {
+	// 	asm!("sfence.vma");
+	// 	asm!("csrw satp, {}", in(reg) satp);
+	// }
 	success!("set satp");
 }
 
@@ -103,7 +129,13 @@ fn kvm_get_entry(_vt: &mut VirtMapPage, va: usize, is_create: bool) -> &mut Page
 }
 
 fn kvm_map(vt: &mut VirtMapPage, start: usize, end: usize, flags: PTE) {
-	vm_map(vt, start, start, end - start + 1, flags);
+	vm_map(
+		vt,
+		start + unsafe { kvm_config.v2p_offset },
+		start,
+		end - start + 1,
+		flags,
+	);
 }
 
 fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, size: usize, flags: PTE) {
