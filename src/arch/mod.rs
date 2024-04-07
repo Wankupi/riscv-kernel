@@ -1,7 +1,5 @@
 use core::arch::asm;
 
-use crate::info;
-
 pub mod mm;
 pub mod trap;
 
@@ -19,6 +17,6 @@ pub fn get_hart_id() -> usize {
 	hart_id
 }
 
-pub fn get_kaslr_seed(dtb_pa: usize) -> usize {
+pub fn get_kaslr_seed(_dtb_pa: usize) -> usize {
 	0
 }

@@ -12,7 +12,6 @@ pub struct SimpleAllocator {
 unsafe impl Sync for SimpleAllocator {}
 use core::sync::atomic::Ordering::SeqCst;
 
-use crate::success;
 unsafe impl GlobalAlloc for SimpleAllocator {
 	unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
 		let align = layout.align();

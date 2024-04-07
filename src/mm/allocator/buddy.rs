@@ -7,9 +7,7 @@ use core::{
 
 use crate::{
 	arch::mm::{PAGE_SIZE, PAGE_SIZE_BITS},
-	info,
 	lang::{Bitmap, UnsafeArray},
-	log,
 	mm::vm,
 	sync::{self, SpinLock},
 };
@@ -148,8 +146,7 @@ impl BuddyAllocator {
 		let meta_size = Self::estimate_meta_size(size);
 		let reserved_size = (meta_size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
 		let available_size = size - reserved_size;
-		let mut available_blocks = available_size >> PAGE_SIZE_BITS;
-		available_blocks = 4096; // TODO: remove this line
+		let available_blocks = available_size >> PAGE_SIZE_BITS;
 		let mut reserve_alloc = phys_begin + vm::get_kernel_v2p_offset();
 		self.phys_offset = phys_begin + reserved_size;
 		self.mutex.init();
