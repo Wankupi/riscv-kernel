@@ -44,7 +44,7 @@ impl SimpleAllocator {
 			use crate::arch::mm::PAGE_SIZE;
 			self.next.get().write((start + (PAGE_SIZE - 1)) & !(PAGE_SIZE - 1));
 		}
-		success!("initialize allocator");
+		// success!("initialize allocator");
 	}
 	pub fn get_current_pos(&self) -> usize {
 		unsafe { *self.next.get() }

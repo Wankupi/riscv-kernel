@@ -56,11 +56,11 @@ all: $(OS_BIN) dump
 
 $(ASM_TARGETS): $(BUILD_DIR)/%.o: %.S
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@
+	@$(CC) -c $< -o $@ -g
 
 $(C_TARGETS): $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@
+	@$(CC) -c $< -o $@ -g
 
 $(LIB_KERNEL): $(RUST_FILES) .cargo/config.toml Cargo.toml
 	@$(CARGO) build $(CARGO_ARGS) 2>/dev/null

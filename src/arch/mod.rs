@@ -6,7 +6,7 @@ pub mod mm;
 pub mod trap;
 
 pub fn shutdown() -> ! {
-	info!("shutdown");
+	// info!("shutdown");
 	unsafe {
 		*(0x100000 as *mut u32) = 0x5555;
 	}

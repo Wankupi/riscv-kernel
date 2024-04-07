@@ -2,6 +2,23 @@ use core::fmt::{self, Write};
 
 use crate::driver::uart::uart_device;
 
+#[macro_export]
+macro_rules! function_name {
+	() => {{
+		fn f() {}
+		fn type_name_of<T>(_: T) -> &'static str {
+			core::any::type_name::<T>()
+		}
+		let name = type_name_of(f);
+
+		// Find and cut the rest of the path
+		match &name[..name.len() - 3].rfind(':') {
+			Some(pos) => &name[pos + 1..name.len() - 3],
+			None => &name[..name.len() - 3],
+		}
+	}};
+}
+
 pub fn printk(s: &[u8]) {
 	let mut ptr = s.as_ptr();
 	let end = s.as_ptr().wrapping_add(s.len());
@@ -26,42 +43,49 @@ pub fn print(args: fmt::Arguments) {
 
 #[macro_export]
 macro_rules! print {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
+    ($fmt: expr $(, $($arg: tt)+)?) => {
         $crate::print::print(format_args!($fmt $(, $($arg)+)?));
     }
 }
 
 #[macro_export]
 macro_rules! println {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
+    ($fmt: expr $(, $($arg: tt)+)?) => {
         $crate::print::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }
 }
 
 #[macro_export]
-macro_rules! error {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-		$crate::print::print(format_args!(concat!("\x1b[31m[error]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
-    }
+macro_rules! debugmsg {
+	($level: literal, $unit:literal, $fmt: literal $(, $($arg: tt)+)?) => {
+		println!(concat!("\x1b[", $level, "m", "[", $unit, "]", "\x1b[0m" ," ", $fmt) $(, $($arg)+)?);
+	};
 }
 
 #[macro_export]
 macro_rules! success {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-		$crate::print::print(format_args!(concat!("\x1b[32m[success]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
-    }
-}
-
-#[macro_export]
-macro_rules! log {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-		$crate::print::print(format_args!(concat!("\x1b[35m[log]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
-    }
+	($fmt: expr $(, $($arg: tt)+)?) => {
+		debugmsg!(32, "{}", $fmt, function_name!() $(, $($arg)+)?);
+	};
 }
 
 #[macro_export]
 macro_rules! info {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-		$crate::print::print(format_args!(concat!("\x1b[36m[info]\x1b[0m ", $fmt, "\n") $(, $($arg)+)?));
-    }
+	($fmt: expr $(, $($arg: tt)+)?) => {
+		debugmsg!(34, "{}", $fmt, function_name!() $(, $($arg)+)?);
+	};
+}
+
+#[macro_export]
+macro_rules! error {
+	($fmt: expr $(, $($arg: tt)+)?) => {
+		debugmsg!(31, "{}", $fmt, function_name!() $(, $($arg)+)?);
+	};
+}
+
+#[macro_export]
+macro_rules! log {
+	($fmt: expr $(, $($arg: tt)+)?) => {
+		debugmsg!(33, "{}", $fmt, function_name!() $(, $($arg)+)?);
+	};
 }

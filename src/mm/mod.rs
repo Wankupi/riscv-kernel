@@ -22,3 +22,19 @@ pub fn alloc(layout: Layout) -> *mut u8 {
 		}
 	}
 }
+
+pub fn dealloc(ptr: *mut u8, layout: Layout) {
+	unsafe {
+		if use_buddy {
+			buddy_allocator.dealloc(ptr, layout)
+		} else {
+			simple_allocator.dealloc(ptr, layout)
+		}
+	}
+}
+
+pub fn change_to_buddy() {
+	unsafe {
+		use_buddy = true;
+	}
+}

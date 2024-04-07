@@ -1,6 +1,6 @@
 use core::panic;
 
-use crate::{arch::mm::*, info, success, alloc};
+use crate::{alloc, arch::mm::*};
 
 #[repr(align(4096))]
 pub struct VirtMapPage {
@@ -26,10 +26,13 @@ use alloc::alloc::Layout;
 
 pub struct KernelVirtMapConfig {
 	pub v2p_offset: usize,
-	pub table_phys_addr: *mut VirtMapPage
+	pub table_phys_addr: *mut VirtMapPage,
 }
 #[no_mangle]
-pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig { v2p_offset: 0, table_phys_addr: 0 as *mut VirtMapPage };
+pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig {
+	v2p_offset: 0,
+	table_phys_addr: 0 as *mut VirtMapPage,
+};
 
 pub fn get_kernel_v2p_offset() -> usize {
 	unsafe { kvm_config.v2p_offset }
@@ -52,11 +55,12 @@ extern "C" {
 
 pub fn init_kvm() {
 	unsafe {
-		// kvm_config.v2p_offset = 0xffff_ffff_0000_0000;
 		kvm_config.v2p_offset = 0;
+		// kvm_config.v2p_offset = 0xffff_ffff_0000_0000;
 		kvm_config.table_phys_addr = VirtMapPage::create();
 	}
 	let k_vt = unsafe { &mut *kvm_config.table_phys_addr };
+	info!("k_vt = {:x}", k_vt as *mut VirtMapPage as usize);
 	// kernel source code
 	kvm_map(k_vt, stext as usize, etext as usize, PTE::R | PTE::X);
 	// kernel rodata
@@ -81,13 +85,13 @@ pub fn init_kvm() {
 		PAGE_SIZE,
 		PTE::R | PTE::W,
 	);
-	success!("create virtual table");
-	info!(
-		"kernel [{:x}, {:x}] size = {}K",
-		skernel as usize,
-		ekernel as usize,
-		(ekernel as usize - skernel as usize) / 1024
-	);
+	// success!("create virtual table");
+	// info!(
+	// 	"kernel [{:x}, {:x}] size = {}K",
+	// 	skernel as usize,
+	// 	ekernel as usize,
+	// 	(ekernel as usize - skernel as usize) / 1024
+	// );
 }
 
 // pub fn kvm_start() {
@@ -131,17 +135,17 @@ fn kvm_get_entry(_vt: &mut VirtMapPage, va: usize, is_create: bool) -> &mut Page
 	return &mut vt.entries[idx[0]];
 }
 
-fn kvm_map(vt: &mut VirtMapPage, start: usize, end: usize, flags: PTE) {
+pub fn kvm_map(vt: &mut VirtMapPage, start: usize, end: usize, flags: PTE) {
 	vm_map(
 		vt,
 		start + unsafe { kvm_config.v2p_offset },
 		start,
-		end - start + 1,
+		end - start,
 		flags,
 	);
 }
 
-fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, size: usize, flags: PTE) {
+pub fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, size: usize, flags: PTE) {
 	let mut v = va & !(PAGE_SIZE - 1);
 	let end = (va + size - 1) & !(PAGE_SIZE - 1);
 	let mut p = pa & !(PAGE_SIZE - 1);

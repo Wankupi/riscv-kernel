@@ -4,17 +4,20 @@ pub trait Mutex {
 	fn unlock(&self);
 }
 
-pub struct LockGuard<'a, T> {
-	mutex: &'a T,
+pub struct LockGuard<T: Mutex> {
+	mutex: *const T,
 }
-
-impl<'a, T: Mutex> LockGuard<'a, T> {
-	pub fn new(mutex: &'a T) -> Self {
+impl<T: Mutex> LockGuard<T> {
+	pub fn new(mutex: &T) -> Self {
 		mutex.lock();
 		Self { mutex }
 	}
-	pub fn drop(&mut self) {
-		self.mutex.unlock();
+}
+impl<T: Mutex> Drop for LockGuard<T> {
+	fn drop(&mut self) {
+		unsafe {
+			(*self.mutex).unlock();
+		}
 	}
 }
 

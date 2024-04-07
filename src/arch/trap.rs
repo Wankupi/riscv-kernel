@@ -19,6 +19,6 @@ pub fn trap_init() {
 extern "C" fn kernel_trap_entry() {
 	let pc: usize;
 	unsafe { asm!("csrr {}, sepc", out(reg) pc) }
-	error!("Trap! from addr = {:x}", pc);
+	// error!("Trap! from addr = {:x}", pc);
 	shutdown();
 }

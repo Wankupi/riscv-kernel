@@ -21,10 +21,12 @@ _enable_mmu:
     ld         a1, 8(t0)              # page table address
     add        ra, ra, a0
     la         a2, 1f
+    add        a2, a2, a0
     csrw       stvec, a2
     sfence.vma
     csrw       satp, a1
 1:
+    sfence.vma
     csrw       stvec, 0
     ret
 

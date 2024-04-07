@@ -7,13 +7,15 @@
 
 extern crate alloc;
 
+#[macro_use]
+mod print;
 mod arch;
 mod driver;
 mod lang;
 mod mm;
-mod print;
 mod sync;
-pub use mm::alloc;
+mod test;
+pub use mm::{alloc, dealloc};
 pub use crate::arch::shutdown;
 
 use crate::arch::trap::trap_init;
@@ -33,16 +35,23 @@ pub extern "C" fn kmain_early() {
 	success!("start kmain early init");
 	mm::simple_allocator.init(ekernel as usize);
 	mm::vm::init_kvm();
+	success!("end kmain early init");
 }
+
+
 
 
 #[no_mangle]
 pub extern "C" fn kmain() {
 	success!("start kmain");
+	debugmsg!(33, "main", "hello {}", 2);
 	trap_init();
 	
 	unsafe {
 		mm::buddy_allocator.init(mm::simple_allocator.get_current_pos(), 0x88000000);
 	}
+	mm::change_to_buddy();
+	test::test_buddy();
+
 	shutdown();
 }

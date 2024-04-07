@@ -23,11 +23,11 @@ impl Bitmap {
 		let bit_index = index & (core::mem::size_of::<usize>() - 1);
 		unsafe { self.data.add(word_index).read() & (1 << bit_index) != 0 }
 	}
-	pub fn set(&self, index: usize) {
+	pub fn set(&self, index: usize, value: bool) {
 		let word_index = index / core::mem::size_of::<usize>();
 		let bit_index = index & (core::mem::size_of::<usize>() - 1);
 		let old_value = unsafe { self.data.add(word_index).read() };
-		let new_value = old_value | (1 << bit_index);
+		let new_value = if value { old_value | (1 << bit_index) } else { old_value & !(1 << bit_index) };
 		unsafe { self.data.add(word_index).write(new_value) }
 	}
 	pub fn toggle(&self, index: usize) {
