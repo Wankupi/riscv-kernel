@@ -17,14 +17,15 @@ _start:
     .section   .text.enable_mmu
 _enable_mmu:
     la         t0, kvm_config
-    ld         a0, 0(t0)              # offset of virt and phys
-    ld         a1, 8(t0)              # page table address
-    add        ra, ra, a0
+    ld         a0, 0(t0)              # satp
+    ld         a1, 8(t0)              # offset of virt and phys
+    add        ra, ra, a1
     la         a2, 1f
-    add        a2, a2, a0
+    add        a2, a2, a1
     csrw       stvec, a2
     sfence.vma
-    csrw       satp, a1
+    csrw       satp, a0
+    .align     2
 1:
     sfence.vma
     csrw       stvec, 0

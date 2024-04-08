@@ -38,13 +38,9 @@ pub extern "C" fn kmain_early() {
 	success!("end kmain early init");
 }
 
-
-
-
 #[no_mangle]
 pub extern "C" fn kmain() {
 	success!("start kmain");
-	debugmsg!(33, "main", "hello {}", 2);
 	trap_init();
 	
 	unsafe {

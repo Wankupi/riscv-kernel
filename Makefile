@@ -8,7 +8,7 @@ CARGO_MODE ?= release
 QEMU_MEMORY_SIZE = 128M
 QEMU_SET_BIOS = false
 QEMU_SET_BIOS_CONFIG = /home/wkp/codes/kernel/build/sbi.bin
-QEMU_SET_SMP = true
+QEMU_SET_SMP = false
 QEMU_SET_SMP_CONFIG = 2
 
 # toolchain
@@ -86,7 +86,7 @@ debug: $(OS_BIN) dump
 	@qemu-system-riscv64 $(QEMU_RUN_ARGS) -kernel $< -s -S
 
 gdb: dump
-	@riscv64-elf-gdb -ex 'file $(OS_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
+	@riscv64-elf-gdb -x '.gdbinit' -ex 'target remote localhost:1234'
 
 clean:
 	@rm -r $(BUILD_DIR)

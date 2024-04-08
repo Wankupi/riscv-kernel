@@ -48,9 +48,6 @@ impl BuddyAllocator {
 			mutex: SpinLock::new(),
 		}
 	}
-}
-
-impl BuddyAllocator {
 	fn estimate_meta_size(size: usize) -> usize {
 		let blocks = size >> PAGE_SIZE_BITS;
 		// bitmap
@@ -155,6 +152,9 @@ impl BuddyAllocator {
 		self.init_nodes_mem(available_blocks, &mut reserve_alloc);
 		self.init_add_nodes(available_blocks);
 	}
+}
+
+impl BuddyAllocator {
 	fn get_alloc_order(mut size: usize) -> usize {
 		fn lowbit(x: usize) -> usize {
 			x & (-(x as isize) as usize)

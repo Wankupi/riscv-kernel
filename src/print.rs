@@ -57,35 +57,35 @@ macro_rules! println {
 
 #[macro_export]
 macro_rules! debugmsg {
-	($level: literal, $unit:literal, $fmt: literal $(, $($arg: tt)+)?) => {
-		println!(concat!("\x1b[", $level, "m", "[", $unit, "]", "\x1b[0m" ," ", $fmt) $(, $($arg)+)?);
+	($level: literal, $unit: expr, $fmt: literal $(, $($arg: tt)+)?) => {
+		println!(concat!("\x1b[{}m", "[{:^16}]", "\x1b[0m" ," ", $fmt), $level, $unit $(, $($arg)+)?);
 	};
 }
 
 #[macro_export]
 macro_rules! success {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(32, "{}", $fmt, function_name!() $(, $($arg)+)?);
+		debugmsg!(32, function_name!(), $fmt $(, $($arg)+)?);
 	};
 }
 
 #[macro_export]
 macro_rules! info {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(34, "{}", $fmt, function_name!() $(, $($arg)+)?);
+		debugmsg!(34, function_name!(), $fmt $(, $($arg)+)?);
 	};
 }
 
 #[macro_export]
 macro_rules! error {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(31, "{}", $fmt, function_name!() $(, $($arg)+)?);
+		debugmsg!(31, function_name!(), $fmt $(, $($arg)+)?);
 	};
 }
 
 #[macro_export]
 macro_rules! log {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(33, "{}", $fmt, function_name!() $(, $($arg)+)?);
+		debugmsg!(33, function_name!(), $fmt $(, $($arg)+)?);
 	};
 }

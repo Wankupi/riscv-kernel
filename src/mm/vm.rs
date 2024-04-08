@@ -1,6 +1,6 @@
-use core::panic;
-
 use crate::{alloc, arch::mm::*};
+use alloc::alloc::Layout;
+use core::panic;
 
 #[repr(align(4096))]
 pub struct VirtMapPage {
@@ -21,21 +21,19 @@ impl VirtMapPage {
 	}
 }
 
-use alloc::alloc::Layout;
-// static mut k_vt_ptr: *mut VirtMapPage = 0 as *mut VirtMapPage;
-
 pub struct KernelVirtMapConfig {
-	pub v2p_offset: usize,
-	pub table_phys_addr: *mut VirtMapPage,
+	// pub table_phys_addr: *mut VirtMapPage,
+	pub satp: usize,
+	pub v2p_offset_text: usize,
 }
 #[no_mangle]
 pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig {
-	v2p_offset: 0,
-	table_phys_addr: 0 as *mut VirtMapPage,
+	v2p_offset_text: 0,
+	satp: 0,
 };
 
 pub fn get_kernel_v2p_offset() -> usize {
-	unsafe { kvm_config.v2p_offset }
+	unsafe { kvm_config.v2p_offset_text }
 }
 
 extern "C" {
@@ -54,20 +52,22 @@ extern "C" {
 }
 
 pub fn init_kvm() {
+	let table_phys_addr = unsafe { VirtMapPage::create() };
 	unsafe {
-		kvm_config.v2p_offset = 0;
-		// kvm_config.v2p_offset = 0xffff_ffff_0000_0000;
-		kvm_config.table_phys_addr = VirtMapPage::create();
+		kvm_config.satp = (table_phys_addr as usize >> PAGE_SIZE_BITS) | (8 << 60);
+		kvm_config.v2p_offset_text = 0;
+		// kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
 	}
-	let k_vt = unsafe { &mut *kvm_config.table_phys_addr };
+	let k_vt = unsafe { &mut *table_phys_addr };
 	info!("k_vt = {:x}", k_vt as *mut VirtMapPage as usize);
+	kvm_map(k_vt, 0x00000000, stext as usize, PTE::R | PTE::W);
 	// kernel source code
 	kvm_map(k_vt, stext as usize, etext as usize, PTE::R | PTE::X);
 	// kernel rodata
 	kvm_map(k_vt, srodata as usize, erodata as usize, PTE::R);
 	// kernel data
 	kvm_map(k_vt, sdata as usize, edata as usize, PTE::R | PTE::W);
-	// kernel bss
+	// kernel bss ( with stack )
 	kvm_map(k_vt, sbss as usize, ebss as usize, PTE::R | PTE::W);
 	// uart device
 	vm_map(
@@ -85,77 +85,80 @@ pub fn init_kvm() {
 		PAGE_SIZE,
 		PTE::R | PTE::W,
 	);
-	// success!("create virtual table");
-	// info!(
-	// 	"kernel [{:x}, {:x}] size = {}K",
-	// 	skernel as usize,
-	// 	ekernel as usize,
-	// 	(ekernel as usize - skernel as usize) / 1024
-	// );
 }
-
-// pub fn kvm_start() {
-// 	let satp = unsafe { (8 << 60) | (k_vt_ptr as usize >> 12) };
-// 	extern "C" {
-// 		fn _kvm_start(satp: usize, offset: usize);
-// 	}
-// 	unsafe {
-// 		_kvm_start(satp, kvm_config.v2p_offset);
-// 	}
-// 	// unsafe {
-// 	// 	asm!("sfence.vma");
-// 	// 	asm!("csrw satp, {}", in(reg) satp);
-// 	// }
-// 	success!("set satp");
-// }
 
 fn entry_to_next_table(entry: &PageTableEntry) -> &mut VirtMapPage {
 	unsafe { &mut *((entry.get_ppn() << PAGE_SIZE_BITS) as *mut VirtMapPage) }
 }
 
-fn kvm_get_entry(_vt: &mut VirtMapPage, va: usize, is_create: bool) -> &mut PageTableEntry {
-	let idx = [
-		(va >> (12)) & 0x1ff,
-		(va >> (9 + 12)) & 0x1ff,
-		(va >> (9 + 9 + 12)) & 0x1ff,
-	];
-	let mut vt = _vt;
-	for i in (1..=2).rev() {
-		let k = idx[i];
-		let entry = &mut vt.entries[k];
-		if !entry.get_valid() {
-			if !is_create {
-				panic!("not support");
-			}
-			let p = unsafe { VirtMapPage::create() };
-			*entry = PageTableEntry::from_phys_addr(p as usize) | PTE::V;
-		}
-		vt = entry_to_next_table(entry);
+fn vt_get_entry(vt: &mut VirtMapPage, vindex: usize) -> &mut PageTableEntry {
+	&mut vt.entries[vindex & (1 << 9) - 1]
+}
+fn vt_next_level(vt: &mut VirtMapPage, vindex: usize) -> &mut VirtMapPage {
+	let entry = vt_get_entry(vt, vindex);
+	if !entry.get_valid() {
+		let p = unsafe { VirtMapPage::create() };
+		*entry = PageTableEntry::from_phys_addr(p as usize) | PTE::V;
 	}
-	return &mut vt.entries[idx[0]];
+	let addr = entry.get_ppn() << PAGE_SIZE_BITS;
+	unsafe { &mut *(addr as *mut VirtMapPage) }
 }
 
+fn vm_level2(vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
+	let entry = vt_get_entry(vt, va >> (12 + 9 + 9) & 0x1ff);
+	*entry = PageTableEntry::from_phys_addr(pa) | flags | PTE::V;
+}
+fn vm_level1(mut vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
+	vt = vt_next_level(vt, va >> (12 + 9 + 9) & 0x1ff);
+	let entry = vt_get_entry(vt, va >> (12 + 9) & 0x1ff);
+	*entry = PageTableEntry::from_phys_addr(pa) | flags | PTE::V;
+}
+fn vm_level0(mut vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
+	vt = vt_next_level(vt, (va >> (12 + 9 + 9)) & 0x1ff);
+	vt = vt_next_level(vt, (va >> (12 + 9)) & 0x1ff);
+	let entry = vt_get_entry(vt, (va >> 12) & 0x1ff);
+	*entry = PageTableEntry::from_phys_addr(pa) | flags | PTE::V;
+}
+
+/// @param [start, end)
 pub fn kvm_map(vt: &mut VirtMapPage, start: usize, end: usize, flags: PTE) {
 	vm_map(
 		vt,
-		start + unsafe { kvm_config.v2p_offset },
+		start + unsafe { kvm_config.v2p_offset_text },
 		start,
 		end - start,
 		flags,
 	);
 }
 
-pub fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, size: usize, flags: PTE) {
-	let mut v = va & !(PAGE_SIZE - 1);
-	let end = (va + size - 1) & !(PAGE_SIZE - 1);
-	let mut p = pa & !(PAGE_SIZE - 1);
-	loop {
-		let entry = kvm_get_entry(vt, v, true);
-		*entry = PageTableEntry::from_phys_addr(p) | flags | PTE::V;
-		if v == end {
-			break;
-		}
-		v += PAGE_SIZE;
-		p += PAGE_SIZE;
+const PTE_CONTROL_SIZE_0: usize = PAGE_SIZE;
+const PTE_CONTROL_SIZE_1: usize = PTE_CONTROL_SIZE_0 << 9;
+const PTE_CONTROL_SIZE_2: usize = PTE_CONTROL_SIZE_1 << 9;
+
+pub fn vm_map(vt: &mut VirtMapPage, mut va: usize, mut pa: usize, mut size: usize, flags: PTE) {
+	if (va & 0xfff) != 0 || (pa & 0xfff) != 0 {
+		panic!("vm_map: va or pa is not page aligned");
+	}
+	size = (size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+	if (size & 0xfff) != 0 {
+		log!("vm_map: size is not page aligned: {:x}", size);
+	}
+	while size >= PTE_CONTROL_SIZE_2 {
+		vm_level2(vt, va, pa, flags);
+		va += PTE_CONTROL_SIZE_2;
+		pa += PTE_CONTROL_SIZE_2;
+		size -= PTE_CONTROL_SIZE_2;
+	}
+	while size >= PTE_CONTROL_SIZE_1 {
+		vm_level1(vt, va, pa, flags);
+		va += PTE_CONTROL_SIZE_1;
+		pa += PTE_CONTROL_SIZE_1;
+		size -= PTE_CONTROL_SIZE_1;
+	}
+	while size >= PTE_CONTROL_SIZE_0 {
+		vm_level0(vt, va, pa, flags);
+		va += PTE_CONTROL_SIZE_0;
+		pa += PTE_CONTROL_SIZE_0;
+		size -= PTE_CONTROL_SIZE_0;
 	}
 }
