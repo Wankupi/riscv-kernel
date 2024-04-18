@@ -2,7 +2,7 @@ BUILD_DIR = build
 SRC_DIR = src
 
 # compile setting
-CARGO_MODE ?= release
+CARGO_MODE ?= debug
 
 # run setting
 QEMU_MEMORY_SIZE = 128M
@@ -13,12 +13,13 @@ QEMU_SET_SMP_CONFIG = 2
 
 # toolchain
 CARGO = cargo
-OBJCOPY = riscv64-elf-objcopy
-OBJDUMP = riscv64-elf-objdump
+OBJCOPY = riscv64-linux-gnu-objcopy
+OBJDUMP = riscv64-linux-gnu-objdump
+# CC = riscv64-linux-gnu-gcc
 CC = riscv64-elf-gcc
 CPPFILT = c++filt
-# LD = riscv64-elf-ld
 LD = riscv64-linux-gnu-ld
+# LD = riscv64-linux-gnu-ld
 
 CARGO_DIST_DIR = $(BUILD_DIR)/rust
 CARGO_ARGS = --target-dir '$(CARGO_DIST_DIR)' -Z unstable-options --out-dir $(BUILD_DIR)
@@ -60,7 +61,7 @@ $(ASM_TARGETS): $(BUILD_DIR)/%.o: %.S
 
 $(C_TARGETS): $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ -g
+	@$(CC) -c $< -o $@ -g -fPIC
 
 $(LIB_KERNEL): $(RUST_FILES) .cargo/config.toml Cargo.toml
 	@$(CARGO) build $(CARGO_ARGS) 2>/dev/null
@@ -85,8 +86,11 @@ run: $(OS_BIN) dump
 debug: $(OS_BIN) dump
 	@qemu-system-riscv64 $(QEMU_RUN_ARGS) -kernel $< -s -S
 
+
+GDB := riscv64-elf-gdb
+
 gdb: dump
-	@riscv64-elf-gdb -x '.gdbinit' -ex 'target remote localhost:1234'
+	@$(GDB) -ex 'target remote localhost:1234' -x '.gdbinit'
 
 clean:
 	@rm -r $(BUILD_DIR)

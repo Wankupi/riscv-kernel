@@ -35,6 +35,9 @@ pub static mut kvm_config: KernelVirtMapConfig = KernelVirtMapConfig {
 pub fn get_kernel_v2p_offset() -> usize {
 	unsafe { kvm_config.v2p_offset_text }
 }
+pub fn get_kernel_vtable() -> &'static mut VirtMapPage {
+	unsafe { &mut *(((kvm_config.satp & ((1 << 44) - 1)) << 12) as *mut VirtMapPage) }
+}
 
 extern "C" {
 	fn stext();
@@ -45,11 +48,12 @@ extern "C" {
 	fn edata();
 	fn sbss();
 	fn ebss();
-	fn uart_base_addr();
-	fn system_reset_addr();
+	// fn uart_base_addr();
+	// fn system_reset_addr();
 	fn skernel();
 	fn ekernel();
 }
+use crate::config::*;
 
 pub fn init_kvm() {
 	let table_phys_addr = unsafe { VirtMapPage::create() };
@@ -59,16 +63,14 @@ pub fn init_kvm() {
 		// kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
 	}
 	let k_vt = unsafe { &mut *table_phys_addr };
-	info!("k_vt = {:x}", k_vt as *mut VirtMapPage as usize);
-	kvm_map(k_vt, 0x00000000, stext as usize, PTE::R | PTE::W);
 	// kernel source code
-	kvm_map(k_vt, stext as usize, etext as usize, PTE::R | PTE::X);
+	kvm_map_early(stext as usize, etext as usize, PTE::R | PTE::X);
 	// kernel rodata
-	kvm_map(k_vt, srodata as usize, erodata as usize, PTE::R);
+	kvm_map_early(srodata as usize, erodata as usize, PTE::R);
 	// kernel data
-	kvm_map(k_vt, sdata as usize, edata as usize, PTE::R | PTE::W);
+	kvm_map_early(sdata as usize, edata as usize, PTE::R | PTE::W);
 	// kernel bss ( with stack )
-	kvm_map(k_vt, sbss as usize, ebss as usize, PTE::R | PTE::W);
+	kvm_map_early(sbss as usize, ebss as usize, PTE::R | PTE::W);
 	// uart device
 	vm_map(
 		k_vt,
@@ -85,6 +87,14 @@ pub fn init_kvm() {
 		PAGE_SIZE,
 		PTE::R | PTE::W,
 	);
+	let simple_allocator_range = super::simple_allocator.get_control_range();
+	vm_map(
+		k_vt,
+		simple_allocator_range.0,
+		simple_allocator_range.0,
+		simple_allocator_range.1 - simple_allocator_range.0,
+		PTE::R | PTE::W,
+	);
 }
 
 fn entry_to_next_table(entry: &PageTableEntry) -> &mut VirtMapPage {
@@ -99,6 +109,8 @@ fn vt_next_level(vt: &mut VirtMapPage, vindex: usize) -> &mut VirtMapPage {
 	if !entry.get_valid() {
 		let p = unsafe { VirtMapPage::create() };
 		*entry = PageTableEntry::from_phys_addr(p as usize) | PTE::V;
+	} else if entry.is_leaf() {
+		panic!("vt_next_level: entry is leaf");
 	}
 	let addr = entry.get_ppn() << PAGE_SIZE_BITS;
 	unsafe { &mut *(addr as *mut VirtMapPage) }
@@ -121,14 +133,13 @@ fn vm_level0(mut vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
 }
 
 /// @param [start, end)
-pub fn kvm_map(vt: &mut VirtMapPage, start: usize, end: usize, flags: PTE) {
-	vm_map(
-		vt,
-		start + unsafe { kvm_config.v2p_offset_text },
-		start,
-		end - start,
-		flags,
-	);
+pub fn kvm_map_early(start: usize, end: usize, flags: PTE) {
+	let offset = unsafe { kvm_config.v2p_offset_text };
+	kvm_map(start + offset, start, end - start, flags);
+}
+pub fn kvm_map(va: usize, pa: usize, size: usize, flags: PTE) {
+	let vt = get_kernel_vtable();
+	vm_map(vt, va, pa, size, flags);
 }
 
 const PTE_CONTROL_SIZE_0: usize = PAGE_SIZE;
@@ -142,6 +153,22 @@ pub fn vm_map(vt: &mut VirtMapPage, mut va: usize, mut pa: usize, mut size: usiz
 	size = (size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
 	if (size & 0xfff) != 0 {
 		log!("vm_map: size is not page aligned: {:x}", size);
+	}
+	info!(
+		"vm_map: va=[{:x}, {:x})  pa=[{:x}, {:x})  size={:x}, flags={:x}",
+		va, va + size, pa, pa + size, size, flags
+	);
+	while size >= PTE_CONTROL_SIZE_0  && (va & (PTE_CONTROL_SIZE_1 - 1)) != 0 {
+		vm_level0(vt, va, pa, flags);
+		va += PTE_CONTROL_SIZE_0;
+		pa += PTE_CONTROL_SIZE_0;
+		size -= PTE_CONTROL_SIZE_0;
+	}
+	while size >= PTE_CONTROL_SIZE_1 && (va & (PTE_CONTROL_SIZE_2 - 1)) != 0 {
+		vm_level1(vt, va, pa, flags);
+		va += PTE_CONTROL_SIZE_1;
+		pa += PTE_CONTROL_SIZE_1;
+		size -= PTE_CONTROL_SIZE_1;
 	}
 	while size >= PTE_CONTROL_SIZE_2 {
 		vm_level2(vt, va, pa, flags);

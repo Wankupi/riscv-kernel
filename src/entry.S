@@ -17,8 +17,8 @@ _start:
     .section   .text.enable_mmu
 _enable_mmu:
     la         t0, kvm_config
-    ld         a0, 0(t0)              # satp
-    ld         a1, 8(t0)              # offset of virt and phys
+    ld         a0, 0(t0)                         # satp
+    ld         a1, 8(t0)                         # offset of virt and phys
     add        ra, ra, a1
     la         a2, 1f
     add        a2, a2, a1
@@ -31,9 +31,11 @@ _enable_mmu:
     csrw       stvec, 0
     ret
 
-    .section   .bss.stack
+
+    .section   .bss.stack.boot_stack_lower_bound
     .globl     boot_stack_lower_bound
 boot_stack_lower_bound:
     .space     4096 * 64
+    .section   .bss.stack.boot_stack_top
     .globl     boot_stack_top
 boot_stack_top:

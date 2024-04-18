@@ -6,7 +6,7 @@
 #![allow(unreachable_code)]
 
 extern crate alloc;
-
+mod config;
 #[macro_use]
 mod print;
 mod arch;
@@ -25,9 +25,9 @@ pub static mut dtb_addr: usize = 0;
 
 extern "C" {
 	fn ekernel();
-	fn uart_base_addr();
 }
 
+use crate::config::*;
 
 #[no_mangle]
 pub extern "C" fn kmain_early() {
@@ -40,12 +40,13 @@ pub extern "C" fn kmain_early() {
 
 #[no_mangle]
 pub extern "C" fn kmain() {
-	success!("start kmain");
 	trap_init();
-	
+	success!("start kmain");
+	mm::simple_allocator.dbg_report();
 	unsafe {
-		mm::buddy_allocator.init(mm::simple_allocator.get_current_pos(), 0x88000000);
+		mm::buddy_allocator.init(mm::simple_allocator.get_control_range().1, 0x88000000);
 	}
+	mm::simple_allocator.dbg_report();
 	mm::change_to_buddy();
 	test::test_buddy();
 

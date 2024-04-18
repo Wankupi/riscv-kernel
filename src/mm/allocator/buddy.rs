@@ -1,4 +1,4 @@
-const MAX_ORDER: usize = 11;
+const MAX_ORDER: usize = 20;
 
 use core::{
 	alloc::{GlobalAlloc, Layout},
@@ -8,7 +8,6 @@ use core::{
 use crate::{
 	arch::mm::{PAGE_SIZE, PAGE_SIZE_BITS},
 	lang::{Bitmap, UnsafeArray},
-	mm::vm,
 	sync::{self, SpinLock},
 };
 
@@ -110,17 +109,16 @@ impl BuddyAllocator {
 		list.next = meta;
 	}
 	pub fn init_lists(&mut self) {
-		for i in 0..MAX_ORDER {
+		for i in 0..=MAX_ORDER {
 			self.lists[i].last = 0 as *mut MemAreaStatus;
 			self.lists[i].next = 0 as *mut MemAreaStatus;
 		}
 	}
 	pub fn init_bitmap(&mut self, blocks: usize, current_start: &mut usize) {
-		for i in 0..=MAX_ORDER {
-			let block_cnt = blocks >> i;
-			let use_mem = (block_cnt + size_of::<usize>() - 1) & !(size_of::<usize>() - 1);
+		for i in 0..MAX_ORDER {
+			let block_cnt = blocks >> (i + 1);
 			let addr = *current_start;
-			self.bitmaps[i].init(addr as *mut usize, use_mem);
+			let use_mem = self.bitmaps[i].init(addr as *mut usize, block_cnt);
 			*current_start += use_mem;
 		}
 	}
@@ -141,10 +139,11 @@ impl BuddyAllocator {
 	}
 	pub fn init(&mut self, phys_begin: usize, size: usize) {
 		let meta_size = Self::estimate_meta_size(size);
+		let meta_ptr = crate::mm::alloc(Layout::from_size_align(meta_size, 8).unwrap());
 		let reserved_size = (meta_size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
 		let available_size = size - reserved_size;
 		let available_blocks = available_size >> PAGE_SIZE_BITS;
-		let mut reserve_alloc = phys_begin + vm::get_kernel_v2p_offset();
+		let mut reserve_alloc = meta_ptr as usize;
 		self.phys_offset = phys_begin + reserved_size;
 		self.mutex.init();
 		self.init_lists();

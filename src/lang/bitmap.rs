@@ -13,10 +13,13 @@ impl Bitmap {
 	pub const fn new() -> Self {
 		Self { data: 0 as *mut usize, size: 0 }
 	}
-	pub fn init(&mut self, data: *mut usize, size: usize) {
+	pub fn init(&mut self, data: *mut usize, size: usize) -> usize {
 		self.data = data;
 		self.size = size;
-		memset(data as *mut u8, 0, size * size_of::<usize>());
+		const unit: usize = size_of::<usize>() * 8;
+		let use_mem = (size + unit - 1) / unit * size_of::<usize>();
+		memset(data as *mut u8, 0, use_mem);
+		use_mem
 	}
 	pub fn get(&self, index: usize) -> bool {
 		let word_index = index / core::mem::size_of::<usize>();

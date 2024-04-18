@@ -13,6 +13,7 @@ pub static mut buddy_allocator: BuddyAllocator = BuddyAllocator::new();
 
 static mut use_buddy: bool = false;
 
+/// @return physical address
 pub fn alloc(layout: Layout) -> *mut u8 {
 	unsafe {
 		if use_buddy {
@@ -22,7 +23,7 @@ pub fn alloc(layout: Layout) -> *mut u8 {
 		}
 	}
 }
-
+/// @params ptr: physical address
 pub fn dealloc(ptr: *mut u8, layout: Layout) {
 	unsafe {
 		if use_buddy {

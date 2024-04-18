@@ -40,6 +40,9 @@ impl PageTableEntry {
 	pub fn from_phys_addr(addr: usize) -> Self {
 		Self { bits: (addr >> PAGE_SIZE_BITS) << 10 }
 	}
+	pub fn is_leaf(&self) -> bool {
+		self.bits & 0b1110 != 0
+	}
 }
 
 impl ops::BitOr<PTE> for PageTableEntry {
