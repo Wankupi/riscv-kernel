@@ -32,6 +32,7 @@ use crate::config::*;
 #[no_mangle]
 pub extern "C" fn kmain_early() {
 	driver::uart::uart_device.init(uart_base_addr as usize);
+	test::test_dynamic_function();
 	success!("start kmain early init");
 	mm::simple_allocator.init(ekernel as usize);
 	mm::vm::init_kvm();
@@ -41,14 +42,12 @@ pub extern "C" fn kmain_early() {
 #[no_mangle]
 pub extern "C" fn kmain() {
 	trap_init();
+	test::test_dynamic_function();
 	success!("start kmain");
-	mm::simple_allocator.dbg_report();
 	unsafe {
 		mm::buddy_allocator.init(mm::simple_allocator.get_control_range().1, 0x88000000);
 	}
-	mm::simple_allocator.dbg_report();
 	mm::change_to_buddy();
 	test::test_buddy();
-
 	shutdown();
 }

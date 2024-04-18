@@ -58,7 +58,7 @@ macro_rules! println {
 #[macro_export]
 macro_rules! debugmsg {
 	($level: literal, $unit: expr, $fmt: literal $(, $($arg: tt)+)?) => {
-		println!(concat!("\x1b[{}m", "[{:^16}]", "\x1b[0m" ," ", $fmt), $level, $unit $(, $($arg)+)?);
+		println!(concat!("<{:26}> ", "\x1b[{}m", "[{:12}]", "\x1b[0m" ," ", $fmt), file!(), $level, $unit $(, $($arg)+)?);
 	};
 }
 

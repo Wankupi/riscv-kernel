@@ -137,7 +137,9 @@ impl BuddyAllocator {
 			}
 		}
 	}
-	pub fn init(&mut self, phys_begin: usize, size: usize) {
+	pub fn init(&mut self, phys_begin: usize, phys_end: usize) {
+		let size = phys_end - phys_begin;
+		info!("buddy allocator init: [{:x}, {:x}), size = {:x}", phys_begin, phys_end, size);
 		let meta_size = Self::estimate_meta_size(size);
 		let meta_ptr = crate::mm::alloc(Layout::from_size_align(meta_size, 8).unwrap());
 		let reserved_size = (meta_size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
