@@ -29,6 +29,7 @@ impl MemAreaStatus {
 }
 
 pub struct BuddyAllocator {
+	blocks: usize,
 	phys_offset: usize,
 	// lists: [MemAreaStatus; MAX_ORDER],
 	lists: [MemAreaStatus; MAX_ORDER + 1],
@@ -40,6 +41,7 @@ pub struct BuddyAllocator {
 impl BuddyAllocator {
 	pub const fn new() -> Self {
 		Self {
+			blocks: 0,
 			phys_offset: 0,
 			lists: [MemAreaStatus::new(); MAX_ORDER + 1],
 			bitmaps: [Bitmap::new(); MAX_ORDER + 1],
@@ -146,6 +148,7 @@ impl BuddyAllocator {
 		let available_size = size - reserved_size;
 		let available_blocks = available_size >> PAGE_SIZE_BITS;
 		let mut reserve_alloc = meta_ptr as usize;
+		self.blocks = available_blocks;
 		self.phys_offset = phys_begin + reserved_size;
 		self.mutex.init();
 		self.init_lists();
@@ -176,7 +179,6 @@ impl BuddyAllocator {
 		self.bitmaps[order].toggle(block_id >> (order + 1));
 	}
 	fn _down_block(&self, order: usize) {
-		// log!("_down_block: {}", order);
 		if order > MAX_ORDER {
 			panic!("order too large");
 		}
@@ -209,7 +211,7 @@ impl BuddyAllocator {
 		block_id ^ (1 << order)
 	}
 	fn check_mergeable(&self, order: usize, block_id: usize) -> bool {
-		self.bitmaps[order].get(block_id >> (order + 1))
+		Self::get_buddy_id(order, block_id) < self.blocks && self.bitmaps[order].get(block_id >> (order + 1))
 	}
 	fn pick_out_list(&self, order: usize, block_id: usize) {
 		unsafe {
