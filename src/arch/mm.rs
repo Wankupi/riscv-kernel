@@ -6,8 +6,8 @@ pub const PPN_WIDTH: usize = PA_WIDTH - PAGE_SIZE_BITS;
 pub const PPN_SIZE: usize = 1 << PPN_WIDTH;
 pub const VT_MAP_SIZE: usize = 4096 / 8;
 
-use core::ops;
 use bitflags::bitflags;
+use core::ops;
 
 bitflags! {
 	#[derive(Copy, Clone)]
@@ -20,9 +20,12 @@ bitflags! {
 		const G = 1 << 5;
 		const A = 1 << 6;
 		const D = 1 << 7;
+		const RW = 0b110;
+		const RX = 0b1010;
 	}
 }
 
+#[derive(Clone, Copy)]
 pub struct PageTableEntry {
 	pub bits: usize,
 }
@@ -38,7 +41,9 @@ impl PageTableEntry {
 		self.bits = 0;
 	}
 	pub fn from_phys_addr(addr: usize) -> Self {
-		Self { bits: (addr >> PAGE_SIZE_BITS) << 10 }
+		Self {
+			bits: (addr >> PAGE_SIZE_BITS) << 10,
+		}
 	}
 	pub fn is_leaf(&self) -> bool {
 		self.bits & 0b1110 != 0
@@ -48,12 +53,16 @@ impl PageTableEntry {
 impl ops::BitOr<PTE> for PageTableEntry {
 	type Output = Self;
 	fn bitor(self, rhs: PTE) -> Self {
-		Self { bits: self.bits | rhs.bits() }
+		Self {
+			bits: self.bits | rhs.bits(),
+		}
 	}
 }
 impl ops::BitOr<usize> for PageTableEntry {
 	type Output = Self;
 	fn bitor(self, rhs: usize) -> Self {
-		Self { bits: self.bits | rhs }
+		Self {
+			bits: self.bits | rhs,
+		}
 	}
 }

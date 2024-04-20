@@ -144,12 +144,11 @@ impl BuddyAllocator {
 		info!("buddy allocator init: [{:x}, {:x}), size = {:x}", phys_begin, phys_end, size);
 		let meta_size = Self::estimate_meta_size(size);
 		let meta_ptr = crate::mm::alloc(Layout::from_size_align(meta_size, 8).unwrap());
-		let reserved_size = (meta_size + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
-		let available_size = size - reserved_size;
+		let available_size = size;
 		let available_blocks = available_size >> PAGE_SIZE_BITS;
 		let mut reserve_alloc = meta_ptr as usize;
 		self.blocks = available_blocks;
-		self.phys_offset = phys_begin + reserved_size;
+		self.phys_offset = phys_begin;
 		self.mutex.init();
 		self.init_lists();
 		self.init_bitmap(available_blocks, &mut reserve_alloc);

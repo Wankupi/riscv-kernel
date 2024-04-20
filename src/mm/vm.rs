@@ -1,10 +1,10 @@
 use crate::{alloc, arch::mm::*};
 use alloc::alloc::Layout;
-use core::panic;
+use core::{num::Wrapping, panic};
 
 #[repr(align(4096))]
 pub struct VirtMapPage {
-	entries: [PageTableEntry; VT_MAP_SIZE],
+	pub entries: [PageTableEntry; VT_MAP_SIZE],
 }
 
 impl VirtMapPage {
@@ -13,9 +13,9 @@ impl VirtMapPage {
 			e.clear();
 		}
 	}
-	unsafe fn create() -> *mut VirtMapPage {
+	pub fn create() -> *mut VirtMapPage {
 		let layout = Layout::new::<VirtMapPage>();
-		let k_vt = &mut *(alloc(layout) as *mut VirtMapPage);
+		let k_vt = unsafe { &mut *(alloc(layout) as *mut VirtMapPage) };
 		k_vt.clear();
 		k_vt
 	}
@@ -38,6 +38,9 @@ pub fn get_kernel_v2p_offset() -> usize {
 pub fn get_kernel_vtable() -> &'static mut VirtMapPage {
 	unsafe { &mut *(((kvm_config.satp & ((1 << 44) - 1)) << 12) as *mut VirtMapPage) }
 }
+pub fn get_kernel_satp() -> usize {
+	unsafe { kvm_config.satp }
+}
 
 extern "C" {
 	fn stext();
@@ -52,11 +55,12 @@ extern "C" {
 	// fn system_reset_addr();
 	fn skernel();
 	fn ekernel();
+	fn _trap_entry();
 }
 use crate::config::*;
 
 pub fn init_kvm() {
-	let table_phys_addr = unsafe { VirtMapPage::create() };
+	let table_phys_addr = VirtMapPage::create();
 	unsafe {
 		kvm_config.satp = (table_phys_addr as usize >> PAGE_SIZE_BITS) | (8 << 60);
 		kvm_config.v2p_offset_text = 0;
@@ -93,6 +97,23 @@ pub fn init_kvm() {
 		simple_allocator_range.0,
 		simple_allocator_range.0,
 		simple_allocator_range.1 - simple_allocator_range.0,
+		PTE::R | PTE::W,
+	);
+	log!("qqqaq");
+
+	vm_map(
+		k_vt,
+		0xffffffff_ffff_f000,
+		_trap_entry as usize,
+		4096,
+		PTE::R | PTE::X,
+	);
+	// direct map physical memory
+	vm_map(
+		k_vt,
+		simple_allocator_range.1,
+		simple_allocator_range.1,
+		1024 * 1024 * 128,
 		PTE::R | PTE::W,
 	);
 }
@@ -154,38 +175,54 @@ pub fn vm_map(vt: &mut VirtMapPage, mut va: usize, mut pa: usize, mut size: usiz
 	if (size & 0xfff) != 0 {
 		log!("vm_map: size is not page aligned: {:x}", size);
 	}
+	let mut va = Wrapping(va);
+	let mut pa = Wrapping(pa);
+	let mut size = Wrapping(size);
 	info!(
 		"vm_map: va=[{:x}, {:x})  pa=[{:x}, {:x})  size={:x}, flags={:x}",
-		va, va + size, pa, pa + size, size, flags
+		va,
+		va + size,
+		pa,
+		pa + size,
+		size,
+		flags
 	);
-	while size >= PTE_CONTROL_SIZE_0  && (va & (PTE_CONTROL_SIZE_1 - 1)) != 0 {
-		vm_level0(vt, va, pa, flags);
+	while size.0 >= PTE_CONTROL_SIZE_0 && (va.0 & (PTE_CONTROL_SIZE_1 - 1)) != 0 {
+		vm_level0(vt, va.0, pa.0, flags);
 		va += PTE_CONTROL_SIZE_0;
 		pa += PTE_CONTROL_SIZE_0;
 		size -= PTE_CONTROL_SIZE_0;
 	}
-	while size >= PTE_CONTROL_SIZE_1 && (va & (PTE_CONTROL_SIZE_2 - 1)) != 0 {
-		vm_level1(vt, va, pa, flags);
+	while size.0 >= PTE_CONTROL_SIZE_1 && (va.0 & (PTE_CONTROL_SIZE_2 - 1)) != 0 {
+		vm_level1(vt, va.0, pa.0, flags);
 		va += PTE_CONTROL_SIZE_1;
 		pa += PTE_CONTROL_SIZE_1;
 		size -= PTE_CONTROL_SIZE_1;
 	}
-	while size >= PTE_CONTROL_SIZE_2 {
-		vm_level2(vt, va, pa, flags);
+	while size.0 >= PTE_CONTROL_SIZE_2 {
+		vm_level2(vt, va.0, pa.0, flags);
 		va += PTE_CONTROL_SIZE_2;
 		pa += PTE_CONTROL_SIZE_2;
 		size -= PTE_CONTROL_SIZE_2;
 	}
-	while size >= PTE_CONTROL_SIZE_1 {
-		vm_level1(vt, va, pa, flags);
+	while size.0 >= PTE_CONTROL_SIZE_1 {
+		vm_level1(vt, va.0, pa.0, flags);
 		va += PTE_CONTROL_SIZE_1;
 		pa += PTE_CONTROL_SIZE_1;
 		size -= PTE_CONTROL_SIZE_1;
 	}
-	while size >= PTE_CONTROL_SIZE_0 {
-		vm_level0(vt, va, pa, flags);
+	while size.0 >= PTE_CONTROL_SIZE_0 {
+		vm_level0(vt, va.0, pa.0, flags);
 		va += PTE_CONTROL_SIZE_0;
 		pa += PTE_CONTROL_SIZE_0;
 		size -= PTE_CONTROL_SIZE_0;
 	}
+	// log!("done");
+}
+
+
+pub fn vm_map_trampoline(vt: &mut VirtMapPage) {
+	let kvt = get_kernel_vtable();
+	assert!(kvt.entries[511].bits != 0);
+	vt.entries[511] = kvt.entries[511];
 }
