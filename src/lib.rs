@@ -6,6 +6,7 @@
 #![allow(unreachable_code)]
 
 extern crate alloc;
+extern crate sbi_rt;
 mod config;
 #[macro_use]
 mod print;
@@ -53,6 +54,9 @@ pub extern "C" fn kmain() {
 	}
 	mm::change_to_buddy();
 	test::test_buddy();
+	for i in 0..10 {
+		log!("time = {:x}", arch::get_clock());
+	}
 	test_user();
 	shutdown();
 }
@@ -106,8 +110,11 @@ fn test_user() {
 	}
 	log!("done write content");
 	let offset = _user_ret as usize - _trap_entry as usize;
-	let user_ret_func = (offset + 0xffffffff_ffff_f000);
+	let user_ret_func = offset + 0xffffffff_ffff_f000;
+	sbi_rt::set_timer(arch::get_clock() + 100000);
+	let sie = 1 << 9 | 1 << 5 | 1 << 1;
 	unsafe {
+		asm!("csrw sie, {}", in(reg) sie);
 		asm!("csrw stvec, {}", in(reg) (0xffffffff_ffff_f000 as usize));
 		asm!("jr {}", in(reg) user_ret_func);
 	}

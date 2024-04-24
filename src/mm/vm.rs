@@ -128,7 +128,7 @@ fn vt_get_entry(vt: &mut VirtMapPage, vindex: usize) -> &mut PageTableEntry {
 fn vt_next_level(vt: &mut VirtMapPage, vindex: usize) -> &mut VirtMapPage {
 	let entry = vt_get_entry(vt, vindex);
 	if !entry.get_valid() {
-		let p = unsafe { VirtMapPage::create() };
+		let p = VirtMapPage::create();
 		*entry = PageTableEntry::from_phys_addr(p as usize) | PTE::V;
 	} else if entry.is_leaf() {
 		panic!("vt_next_level: entry is leaf");
@@ -167,7 +167,7 @@ const PTE_CONTROL_SIZE_0: usize = PAGE_SIZE;
 const PTE_CONTROL_SIZE_1: usize = PTE_CONTROL_SIZE_0 << 9;
 const PTE_CONTROL_SIZE_2: usize = PTE_CONTROL_SIZE_1 << 9;
 
-pub fn vm_map(vt: &mut VirtMapPage, mut va: usize, mut pa: usize, mut size: usize, flags: PTE) {
+pub fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, mut size: usize, flags: PTE) {
 	if (va & 0xfff) != 0 || (pa & 0xfff) != 0 {
 		panic!("vm_map: va or pa is not page aligned");
 	}
