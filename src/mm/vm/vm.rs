@@ -1,25 +1,6 @@
-use crate::{alloc, arch::mm::*};
-use alloc::alloc::Layout;
 use core::{num::Wrapping, panic};
-
-#[repr(align(4096))]
-pub struct VirtMapPage {
-	pub entries: [PageTableEntry; VT_MAP_SIZE],
-}
-
-impl VirtMapPage {
-	fn clear(&mut self) {
-		for e in self.entries.iter_mut() {
-			e.clear();
-		}
-	}
-	pub fn create() -> *mut VirtMapPage {
-		let layout = Layout::new::<VirtMapPage>();
-		let k_vt = unsafe { &mut *(alloc(layout) as *mut VirtMapPage) };
-		k_vt.clear();
-		k_vt
-	}
-}
+use super::{PageTableEntry, VirtMapPage, PTE};
+use crate::{asm_funcs::*, config::*, mm::allocator::simple_allocator};
 
 pub struct KernelVirtMapConfig {
 	// pub table_phys_addr: *mut VirtMapPage,
@@ -41,23 +22,6 @@ pub fn get_kernel_vtable() -> &'static mut VirtMapPage {
 pub fn get_kernel_satp() -> usize {
 	unsafe { kvm_config.satp }
 }
-
-extern "C" {
-	fn stext();
-	fn etext();
-	fn srodata();
-	fn erodata();
-	fn sdata();
-	fn edata();
-	fn sbss();
-	fn ebss();
-	// fn uart_base_addr();
-	// fn system_reset_addr();
-	fn skernel();
-	fn ekernel();
-	fn _trap_entry();
-}
-use crate::config::*;
 
 pub fn init_kvm() {
 	let table_phys_addr = VirtMapPage::create();
@@ -91,7 +55,7 @@ pub fn init_kvm() {
 		PAGE_SIZE,
 		PTE::R | PTE::W,
 	);
-	let simple_allocator_range = super::simple_allocator.get_control_range();
+	let simple_allocator_range = simple_allocator.get_control_range();
 	vm_map(
 		k_vt,
 		simple_allocator_range.0,
@@ -219,7 +183,6 @@ pub fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, mut size: usize, flags
 	}
 	// log!("done");
 }
-
 
 pub fn vm_map_trampoline(vt: &mut VirtMapPage) {
 	let kvt = get_kernel_vtable();

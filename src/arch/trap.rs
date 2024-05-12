@@ -1,17 +1,15 @@
+use crate::{asm_funcs::*, lang::memset};
 use alloc::boxed::Box;
-use core::arch::asm;
+use core::{
+	arch::asm,
+	mem::{size_of, size_of_val},
+};
 
 use crate::{arch::shutdown, print::printk};
 
 fn set_trap(addr: usize) {
 	unsafe { asm!("csrw stvec, {}", in(reg) addr) }
 }
-
-extern "C" {
-	fn _trap_entry();
-	fn _user_ret();
-}
-
 pub fn trap_init() {
 	set_trap(_trap_entry as usize);
 }
@@ -64,51 +62,5 @@ pub extern "C" fn kernel_trap_entry() {
 		}
 	} else {
 		unknown_error();
-	}
-}
-
-pub struct TrapFrame {
-	pub kernel_satp: usize,
-	pub kernel_sp: usize,
-	pub kernel_trap: usize,
-	pub hartid: usize,
-	pub satp: usize,
-	pub regs: [usize; 31],
-	pub pc: usize,
-}
-impl TrapFrame {
-	pub fn new() -> Self {
-		TrapFrame {
-			kernel_satp: 0,
-			kernel_sp: 0,
-			kernel_trap: 0,
-			hartid: 0,
-			regs: [0; 31],
-			pc: 0,
-			satp: 0,
-		}
-	}
-	pub fn new_box() -> Box<Self> {
-		Box::new(Self::new())
-	}
-}
-struct TaskStruct {
-	pid: i32,
-	tid: i32,
-	uid: i32,
-	trap_frame: Box<TrapFrame>,
-}
-
-impl TaskStruct {
-	pub fn new() -> Self {
-		TaskStruct {
-			pid: 0,
-			tid: 0,
-			uid: 0,
-			trap_frame: TrapFrame::new_box(),
-		}
-	}
-	pub fn new_box() -> Box<Self> {
-		Box::new(Self::new())
 	}
 }

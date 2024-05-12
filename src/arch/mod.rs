@@ -1,6 +1,5 @@
 use core::arch::asm;
-
-pub mod mm;
+pub mod regs;
 pub mod trap;
 
 pub fn shutdown() -> ! {
@@ -26,4 +25,15 @@ pub fn get_clock() -> u64 {
 	// unsafe { asm!("csrr {}, time", out(reg) time) }
 	unsafe { asm!("rdtime {}", out(reg) time) }
 	time
+}
+
+pub fn get_tp() -> usize {
+	let tp: usize;
+	unsafe { asm!("mv {}, tp", out(reg) tp) }
+	tp
+}
+
+pub fn set_timer() {
+	const MS: u64 = 1000000;
+	sbi_rt::set_timer(get_clock() + MS);
 }

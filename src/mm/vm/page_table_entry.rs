@@ -1,11 +1,4 @@
-pub const PAGE_SIZE_BITS: usize = 12;
-pub const PAGE_SIZE: usize = 1 << PAGE_SIZE_BITS;
-pub const PA_WIDTH: usize = 56;
-pub const PA_SIZE: usize = 1 << PA_WIDTH;
-pub const PPN_WIDTH: usize = PA_WIDTH - PAGE_SIZE_BITS;
-pub const PPN_SIZE: usize = 1 << PPN_WIDTH;
-pub const VT_MAP_SIZE: usize = 4096 / 8;
-
+use crate::config::*;
 use bitflags::bitflags;
 use core::ops;
 
@@ -25,7 +18,7 @@ bitflags! {
 	}
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct PageTableEntry {
 	pub bits: usize,
 }

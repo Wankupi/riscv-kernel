@@ -40,7 +40,7 @@ impl SimpleAllocator {
 	}
 	pub fn init(&self, mut start: usize) {
 		unsafe {
-			use crate::arch::mm::PAGE_SIZE;
+			use crate::PAGE_SIZE;
 			start = (start + (PAGE_SIZE - 1)) & !(PAGE_SIZE - 1);
 			self.next.get().write(start);
 			self.start.get().write(start);

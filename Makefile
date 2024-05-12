@@ -1,3 +1,4 @@
+PROJECT_DIR = $(shell pwd)
 BUILD_DIR = build
 SRC_DIR = src
 
@@ -35,6 +36,9 @@ ifneq ($(QEMU_SET_SMP),)
 	QEMU_RUN_ARGS += -smp $(QEMU_SET_SMP_CONFIG)
 endif
 
+# QEMU_RUN_ARGS += -device loader,addr=0x80000000,file=/home/wkp/codes/kernel/test/1/a.out
+# QEMU_RUN_ARGS += -mem-path 0x100000000:/home/wkp/codes/kernel/test/1/a.out
+
 ifeq ($(CARGO_MODE), release)
 	CARGO_ARGS += --release
 endif
@@ -57,7 +61,7 @@ all: $(OS_BIN) dump
 
 $(ASM_TARGETS): $(BUILD_DIR)/%.o: %.S
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ -g
+	@$(CC) -c $< -o $@ -g -I $(SRC_DIR)
 
 $(C_TARGETS): $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -96,3 +100,8 @@ clean:
 	@rm -r $(BUILD_DIR)
 
 .PHONY: all clean dump run debug gdb
+
+export BUILD_DIR CC
+
+ram:
+	make -C test

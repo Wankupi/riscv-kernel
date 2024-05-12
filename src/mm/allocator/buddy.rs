@@ -6,9 +6,9 @@ use core::{
 };
 
 use crate::{
-	arch::mm::{PAGE_SIZE, PAGE_SIZE_BITS},
 	lang::{Bitmap, UnsafeArray},
 	sync::{self, SpinLock},
+	PAGE_SIZE, PAGE_SIZE_BITS,
 };
 
 // last == next == nullptr mean this area is being used
@@ -141,7 +141,10 @@ impl BuddyAllocator {
 	}
 	pub fn init(&mut self, phys_begin: usize, phys_end: usize) {
 		let size = phys_end - phys_begin;
-		info!("buddy allocator init: [{:x}, {:x}), size = {:x}", phys_begin, phys_end, size);
+		info!(
+			"buddy allocator init: [{:x}, {:x}), size = {:x}",
+			phys_begin, phys_end, size
+		);
 		let meta_size = Self::estimate_meta_size(size);
 		let meta_ptr = crate::mm::alloc(Layout::from_size_align(meta_size, 8).unwrap());
 		let available_size = size;
@@ -210,7 +213,8 @@ impl BuddyAllocator {
 		block_id ^ (1 << order)
 	}
 	fn check_mergeable(&self, order: usize, block_id: usize) -> bool {
-		Self::get_buddy_id(order, block_id) < self.blocks && self.bitmaps[order].get(block_id >> (order + 1))
+		Self::get_buddy_id(order, block_id) < self.blocks
+			&& self.bitmaps[order].get(block_id >> (order + 1))
 	}
 	fn pick_out_list(&self, order: usize, block_id: usize) {
 		unsafe {

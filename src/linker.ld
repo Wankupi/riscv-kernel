@@ -45,9 +45,6 @@ SECTIONS
     ekernel = .;
     . = ALIGN(4K);
 
-    # uart_base_addr = 0x10000000;
-    # system_reset_addr = 0x100000;
-
     /DISCARD/ : {
         *(.eh_frame)
     }
