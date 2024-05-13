@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 
 use crate::arch::regs::Registers;
 #[derive(Default)]
-#[repr(align(4096))]
+#[repr(align(4096), C)]
 pub struct TrapFrame {
 	pub kernel_satp: usize,
 	pub kernel_sp: usize,

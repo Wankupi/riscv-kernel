@@ -1,3 +1,7 @@
+use crate::user::task::Context;
+
+
+
 extern "C" {
 	pub fn _trap_entry();
 	pub fn stext();
@@ -12,6 +16,7 @@ extern "C" {
 	pub fn ekernel();
 	pub fn _user_ret(satp: usize) -> !;
 	pub fn boot_stack_top();
+	pub fn _switch(from: &mut Context, to: &mut Context);
 }
 
 

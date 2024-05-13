@@ -25,12 +25,12 @@ pub fn get_kernel_satp() -> usize {
 
 pub fn init_kvm() {
 	let table_phys_addr = VirtMapPage::create();
+	let k_vt = unsafe { &mut *table_phys_addr };
 	unsafe {
-		kvm_config.satp = (table_phys_addr as usize >> PAGE_SIZE_BITS) | (8 << 60);
+		kvm_config.satp = k_vt.to_satp();
 		kvm_config.v2p_offset_text = 0;
 		// kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
 	}
-	let k_vt = unsafe { &mut *table_phys_addr };
 	// kernel source code
 	kvm_map_early(stext as usize, etext as usize, PTE::R | PTE::X);
 	// kernel rodata

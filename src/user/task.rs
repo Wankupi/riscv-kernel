@@ -1,11 +1,14 @@
-// use core::default;
+use alloc::{borrow::ToOwned, boxed::Box};
+use xmas_elf::ElfFile;
 
-use core::{borrow::BorrowMut, cell::RefCell};
-
-use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, sync::Arc};
-
-use super::trapframe::TrapFrame;
-use crate::mm::vm::{vm_map, vm_map_trampoline, VirtMapPage};
+use super::{
+	process::{self, Process},
+	trapframe::TrapFrame,
+};
+use crate::{
+	mm::vm::{vm_map, vm_map_trampoline, VirtMapPage},
+	PAGE_SIZE,
+};
 
 #[derive(Default)]
 enum TaskState {
@@ -17,44 +20,49 @@ enum TaskState {
 	Zombie,
 }
 
-#[derive(Default, Clone, Copy)]
-pub struct Section {
-	pub vaddr: usize,
-	pub paddr: usize,
-	pub size: usize,
-}
-
 #[derive(Default)]
-pub struct Sections {
-	// [start, end): left close and right open
-	pub text: Section,
-	pub data: Section,
-	pub heap: Section,
-	pub stack: Section,
+pub struct Context {
+	ra: usize,
+	sp: usize,
+	s0: usize,
+	s1: usize,
+	s2: usize,
+	s3: usize,
+	s4: usize,
+	s5: usize,
+	s6: usize,
+	s7: usize,
+	s8: usize,
+	s9: usize,
+	s10: usize,
+	s11: usize,
 }
 
-pub struct ProcessResource {
-	pub page_table: Box<VirtMapPage>,
-}
-
-#[derive(Default)]
-pub struct Task {
-	pid: i32,
-	tid: i32,
-	uid: i32,
-	parent_pid: i32,
-	state: TaskState,
-	trap_frame: Box<TrapFrame>,
-	name: [u8; 16],
-	// resource: Arc<RefCell<ProcessResource>>,
-	segments: Sections,
-	// TODO: files
-}
-
-impl Task {
-	pub fn new_box() -> Box<Self> {
-		Box::new(Self::default())
+impl Context {
+	pub const fn new() -> Self {
+		Context {
+			ra: 0,
+			sp: 0,
+			s0: 0,
+			s1: 0,
+			s2: 0,
+			s3: 0,
+			s4: 0,
+			s5: 0,
+			s6: 0,
+			s7: 0,
+			s8: 0,
+			s9: 0,
+			s10: 0,
+			s11: 0,
+		}
 	}
+}
+
+pub struct Task {
+	pub state: TaskState,
+	pub process: Box<Process>,
+	pub context: Context,
 }
 
 impl Task {
@@ -65,16 +73,28 @@ impl Task {
 	// 	seg.heap.0 = 0x01000000_00000000;
 	// 	seg.heap.1 = seg.heap.0;
 	// }
-	pub fn init_registers(&mut self) {
-		let tf = self.trap_frame.as_mut();
-		let regs = &mut tf.regs;
-		// ensure main return to trap entry
-		regs.ra_x1 = 0xffffffff_ffff_f000;
-		regs.sp_x2 = self.segments.stack.vaddr;
-	}
+
 	// pub fn build_pagetable(&mut self) {
 	// 	let vt = VirtMapPage::create_ref();
 	// 	vm_map_trampoline(vt);
 	// 	let seg = &self.segments;
 	// }
+}
+
+impl Task {
+	pub fn new(process: Box<Process>) -> Self {
+		let task = Task {
+			state: TaskState::Ready,
+			process: process,
+			context: Context::default(),
+		};
+		task
+	}
+	pub fn new_box(process: Box<Process>) -> Box<Self> {
+		Box::new(Self::new(process))
+	}
+	pub fn from_elf(elf_data: &[u8]) -> Box<Task> {
+		let process = process::create_process(elf_data).unwrap();
+		Task::new_box(process)
+	}
 }

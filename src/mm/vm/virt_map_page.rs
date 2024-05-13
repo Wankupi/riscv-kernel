@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 
 use super::page_table_entry::PageTableEntry;
 use crate::alloc;
+use crate::PAGE_SIZE_BITS;
 use crate::VT_MAP_SIZE;
 
 #[repr(align(4096))]
@@ -28,6 +29,9 @@ impl VirtMapPage {
 	}
 	pub fn create_box() -> Box<VirtMapPage> {
 		unsafe { Box::from_raw(Self::create()) }
+	}
+	pub fn to_satp(&self) -> usize {
+		(self as *const Self as usize >> PAGE_SIZE_BITS) | (8 << 60)
 	}
 }
 impl Default for VirtMapPage {

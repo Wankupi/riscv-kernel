@@ -58,7 +58,7 @@ _trap_entry:
 	sfence.vma zero, zero
 	csrw       satp, a1
 	sfence.vma zero, zero
-	jr         ra                      # jump to kernel trap function
+	jalr       ra                      # jump to kernel trap function
 
 	.global    _user_ret
 	.align     2

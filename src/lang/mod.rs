@@ -6,7 +6,6 @@ mod bitmap;
 pub use bitmap::*;
 
 mod arcbox;
-pub use arcbox::*;
 
 
 pub fn memset(dest: *mut u8, value: u8, size: usize) {
