@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 #![allow(unreachable_code)]
 #![allow(private_interfaces)]
+#![allow(static_mut_refs)]
 
 extern crate alloc;
 extern crate sbi_rt;
@@ -20,6 +21,7 @@ mod sync;
 mod test;
 use alloc::boxed::Box;
 use alloc::string::String;
+use user::scheduler;
 use user::task::Task;
 use user::trapframe::TrapFrame;
 use xmas_elf::ElfFile;
@@ -119,36 +121,19 @@ fn test_user() {
 	// }
 }
 
-union Func {
-	v: usize,
-	func: fn(usize) -> !,
-}
+
 
 fn test_elf() {
 	let start = elf1_start as usize;
 	let end = elf1_end as usize;
 	let data = unsafe { core::slice::from_raw_parts(start as *const u8, end - start) };
 
-	let task = Task::from_elf(data);
-	run(&task);
+	for i in 0..5 {
+		let mut task = Task::from_elf(data);
+		task.process.trapframe.regs.tp_x4 = (i as isize + ('1' as isize) - ('a' as isize)) as usize;
+		scheduler::add_task(task);
+	}
+
+	scheduler::schedule_tasks();
 }
 
-fn run(task: &Box<Task>) {
-	kvm_map(
-		0xffffffff_ffff_e000,
-		task.as_ref().process.trapframe.as_ref() as *const TrapFrame as usize,
-		4096,
-		PTE::RW,
-	);
-	let offset = _user_ret as usize - _trap_entry as usize;
-	let user_ret_func = Func {
-		v: offset + 0xffffffff_ffff_f000,
-	};
-	set_timer();
-	let sie = 1 << 9 | 1 << 5 | 1 << 1;
-	unsafe {
-		asm!("csrw sie, {}", in(reg) sie);
-		asm!("csrw stvec, {}", in(reg) (0xffffffff_ffff_f000 as usize));
-		(user_ret_func.func)(0);
-	}
-}

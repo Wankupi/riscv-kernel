@@ -1,13 +1,12 @@
-use alloc::{borrow::ToOwned, boxed::Box};
-use xmas_elf::ElfFile;
+use core::mem::size_of;
+
+use alloc::boxed::Box;
+
+use crate::arch::trap::run_user;
 
 use super::{
-	process::{self, Process},
+	process::{self, KernelStack, Process},
 	trapframe::TrapFrame,
-};
-use crate::{
-	mm::vm::{vm_map, vm_map_trampoline, VirtMapPage},
-	PAGE_SIZE,
 };
 
 #[derive(Default)]
@@ -21,6 +20,7 @@ enum TaskState {
 }
 
 #[derive(Default)]
+#[repr(C)]
 pub struct Context {
 	ra: usize,
 	sp: usize,
@@ -63,22 +63,9 @@ pub struct Task {
 	pub state: TaskState,
 	pub process: Box<Process>,
 	pub context: Context,
-}
-
-impl Task {
-	// pub fn init_seg(&mut self) {
-	// 	let seg = &mut self.segments;
-	// 	seg.stack.1 = 0xeeeeeeee_00000000;
-	// 	seg.stack.0 = seg.stack.1 - 0x1000;
-	// 	seg.heap.0 = 0x01000000_00000000;
-	// 	seg.heap.1 = seg.heap.0;
-	// }
-
-	// pub fn build_pagetable(&mut self) {
-	// 	let vt = VirtMapPage::create_ref();
-	// 	vm_map_trampoline(vt);
-	// 	let seg = &self.segments;
-	// }
+	// remember how long the task has run
+	// important for scheduler to know take which method to run this thread
+	// pub cputime: usize,
 }
 
 impl Task {
@@ -87,6 +74,7 @@ impl Task {
 			state: TaskState::Ready,
 			process: process,
 			context: Context::default(),
+			// cputime: 0,
 		};
 		task
 	}
@@ -95,6 +83,15 @@ impl Task {
 	}
 	pub fn from_elf(elf_data: &[u8]) -> Box<Task> {
 		let process = process::create_process(elf_data).unwrap();
-		Task::new_box(process)
+		let mut task = Task::new_box(process);
+		task.process.trapframe.task = Some(task.as_mut() as *mut Task as *mut Task);
+		let context = &mut task.context;
+		context.ra = run_user as usize;
+		context.sp =
+			task.process.kernel_stack.as_ref() as *const _ as usize + size_of::<KernelStack>();
+		task
+	}
+	pub fn get_tramframe(&mut self) -> *mut TrapFrame {
+		self.process.trapframe.as_ref() as *const TrapFrame as *mut TrapFrame
 	}
 }

@@ -34,6 +34,6 @@ pub fn get_tp() -> usize {
 }
 
 pub fn set_timer() {
-	const MS: u64 = 1000000;
+	const MS: u64 = 30000;
 	sbi_rt::set_timer(get_clock() + MS);
 }

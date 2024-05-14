@@ -1,8 +1,15 @@
 use alloc::{boxed::Box, vec::Vec};
 
-use crate::_switch;
+use crate::{
+	_switch,
+	mm::vm::{kvm_map, PTE},
+	PAGE_SIZE,
+};
 
-use super::task::{Context, Task};
+use super::{
+	task::{Context, Task},
+	trapframe::TrapFrame,
+};
 
 #[derive(Default)]
 pub struct Scheduler {
@@ -32,7 +39,7 @@ impl Scheduler {
 		}
 		if self.cur_list.is_empty() {
 			self.cur_list.append(&mut self.next_list);
-			self.next_list.reverse();
+			self.cur_list.reverse();
 		}
 		let mut tail = self.cur_list.pop().unwrap();
 		let ret = tail.as_mut() as *mut Task;
@@ -42,12 +49,51 @@ impl Scheduler {
 }
 static mut scheduler: Scheduler = Scheduler::new();
 static mut scheduler_context: Context = Context::new();
-fn schedule_tasks() {
+
+pub fn schedule_tasks() {
 	loop {
 		if let Some(task) = unsafe { scheduler.schedule() } {
+			set_trampoline(task.process.trapframe.as_ref());
 			unsafe {
 				_switch(&mut scheduler_context, &mut task.context);
 			}
 		}
+	}
+}
+
+pub fn yield_this(task: &mut Task) {
+	unsafe {
+		_switch(&mut task.context, &mut scheduler_context);
+		hard_sleep();
+	}
+}
+
+fn set_trampoline(task_trapframe: *const TrapFrame) {
+	kvm_map(
+		0xffffffff_ffff_e000,
+		task_trapframe as usize,
+		PAGE_SIZE,
+		PTE::RW,
+	);
+}
+
+pub fn add_task(task: Box<Task>) {
+	unsafe {
+		scheduler.add_task(task);
+	}
+}
+pub fn remove_task(task: &Task) {
+	unsafe {
+		scheduler.remove_task(task);
+	}
+}
+
+#[no_mangle]
+extern "C"
+fn hard_sleep() {
+	let mut x = 0;
+	let p = &mut x as *mut i32;
+	for _ in 0..5000000 {
+		unsafe { p.write_volatile(10) }
 	}
 }
