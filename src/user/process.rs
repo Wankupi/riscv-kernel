@@ -7,7 +7,11 @@ use xmas_elf::{
 };
 
 use crate::{
-	_trap_entry, alloc, lang::memcpy, mm::vm::{get_kernel_satp, vm_map, vm_map_trampoline, VirtMapPage, PTE}, uart_base_addr, PAGE_SIZE
+	alloc,
+	arch::trap::kernel_trap_entry,
+	lang::memcpy,
+	mm::vm::{get_kernel_satp, vm_map, vm_map_trampoline, VirtMapPage, PTE},
+	uart_base_addr, PAGE_SIZE,
 };
 
 use super::trapframe::TrapFrame;
@@ -79,14 +83,19 @@ pub fn create_process(elf_data: &[u8]) -> Result<Box<Process>, &'static str> {
 		PAGE_SIZE,
 		PTE::RW | PTE::U,
 	);
+	vm_map(
+		&mut process.pagetable,
+		uart_base_addr,
+		uart_base_addr,
+		PAGE_SIZE,
+		PTE::RW | PTE::U,
+	);
 	let tf = process.trapframe.as_mut();
 	tf.kernel_satp = get_kernel_satp();
 	tf.kernel_sp = process.kernel_stack.data.as_ptr() as usize + size_of::<KernelStack>();
-	tf.kernel_trap = _trap_entry as usize;
+	tf.kernel_trap = kernel_trap_entry as usize;
 	tf.hartid = 0;
 	tf.satp = process.pagetable.to_satp();
-	println!("addr of tf: {:x}", tf as *const _ as usize);
-	println!("satp: {:x} {:x}", tf.satp, &tf.satp as *const _ as usize);
 	return Ok(Box::new(process));
 }
 
