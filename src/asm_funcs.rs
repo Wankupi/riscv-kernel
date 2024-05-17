@@ -20,7 +20,4 @@ extern "C" {
 }
 
 
-extern "C" {
-	pub fn elf1_start();
-	pub fn elf1_end();
-}
+include!{"elf_funcs.rs.gen"}

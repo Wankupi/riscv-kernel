@@ -14,3 +14,8 @@ crate-type = ["staticlib"]
 
 [profile.release]
 debug = 2
+
+[workspace]
+members = [
+	"user_program"
+]

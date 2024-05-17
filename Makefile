@@ -3,7 +3,7 @@ BUILD_DIR = build
 SRC_DIR = src
 
 # compile setting
-CARGO_MODE ?= debug
+CARGO_MODE ?= release
 
 # run setting
 QEMU_MEMORY_SIZE = 128M
@@ -22,8 +22,9 @@ CPPFILT = c++filt
 LD = riscv64-linux-gnu-ld
 # LD = riscv64-linux-gnu-ld
 
-CARGO_DIST_DIR = $(BUILD_DIR)/rust
-CARGO_ARGS = --target-dir '$(CARGO_DIST_DIR)' -Z unstable-options --out-dir $(BUILD_DIR)
+CARGO_DIST_DIR = $(PROJECT_DIR)/$(BUILD_DIR)/rust
+CARGO_COPYOUT_DIR = $(PROJECT_DIR)/$(BUILD_DIR)
+CARGO_ARGS = --target-dir '$(CARGO_DIST_DIR)' -Z unstable-options --out-dir '$(CARGO_COPYOUT_DIR)'
 LIB_KERNEL = $(CARGO_DIST_DIR)/riscv64gc-unknown-none-elf/$(CARGO_MODE)/libkernel.a
 
 LINK_CONFIG = -O2
@@ -58,6 +59,8 @@ C_TARGETS = $(C_FILES:%.c=$(BUILD_DIR)/%.o)
 
 all: $(OS_BIN) dump
 
+user:
+	make -C user_program
 
 $(ASM_TARGETS): $(BUILD_DIR)/%.o: %.S
 	@mkdir -p $(dir $@)
@@ -99,9 +102,10 @@ gdb: dump
 clean:
 	@rm -r $(BUILD_DIR)
 
-.PHONY: all clean dump run debug gdb
+.PHONY: all clean dump run debug gdb user
 
-export BUILD_DIR CC
+KernelSrcDir = $(PROJECT_DIR)/$(SRC_DIR)
+export BUILD_DIR CC CARGO_ARGS CARGO_COPYOUT_DIR KernelSrcDir
 
 ram:
 	make -C test
