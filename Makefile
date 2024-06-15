@@ -57,7 +57,7 @@ ASM_TARGETS = $(ASM_FILES:%.S=$(BUILD_DIR)/%.o)
 C_TARGETS = $(C_FILES:%.c=$(BUILD_DIR)/%.o)
 
 
-all: $(OS_BIN) dump
+all: user $(OS_BIN) dump
 
 user:
 	make -C user_program
@@ -100,7 +100,8 @@ gdb: dump
 	@$(GDB) -ex 'target remote localhost:1234' -x '.gdbinit'
 
 clean:
-	@rm -r $(BUILD_DIR)
+	@make -C user_program clean
+	@rm -rf $(BUILD_DIR)
 
 .PHONY: all clean dump run debug gdb user
 

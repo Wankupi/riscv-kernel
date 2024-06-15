@@ -8,3 +8,5 @@ test/
 !src/test
 *.out
 *.gen*
+src/user/elf_funcs_gen.rs
+src/user/elf.gen.S

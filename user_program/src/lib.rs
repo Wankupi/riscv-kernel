@@ -7,15 +7,15 @@
 #![allow(private_interfaces)]
 #![allow(static_mut_refs)]
 
-use core::panic::PanicInfo;
+use core::{panic::PanicInfo, usize};
 
 extern "C" {
-	fn main() -> isize;
+	fn main(a0: usize, a1: usize, a2: usize) -> isize;
 }
 
-
-pub fn _start() -> isize {
-	unsafe { main() }
+#[no_mangle]
+pub extern "C" fn _start(a0: usize, a1: usize, a2: usize) -> isize {
+	unsafe { main(a0, a1, a2) }
 }
 
 #[panic_handler]
@@ -39,7 +39,7 @@ pub mod syscall {
 			asm!("ecall", in("a7") syscall_id as usize, in("a0") args1);
 		}
 	}
-	
+
 	pub fn debug_console_write(s: &str) {
 		syscall1(SyscallID::DebugConsoleWrite, s.as_ptr() as usize);
 	}
