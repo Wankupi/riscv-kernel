@@ -2,6 +2,7 @@ pub mod process;
 pub mod scheduler;
 pub mod task;
 pub mod trapframe;
+pub mod syscall;
 
 pub mod elf_funcs_gen;
 use elf_funcs_gen::*;

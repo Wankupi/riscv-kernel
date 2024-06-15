@@ -142,15 +142,6 @@ pub fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, mut size: usize, flags
 	let mut va = Wrapping(va);
 	let mut pa = Wrapping(pa);
 	let mut size = Wrapping(size);
-	info!(
-		"vm_map: va=[{:x}, {:x})  pa=[{:x}, {:x})  size={:x}, flags={:x}",
-		va,
-		va + size,
-		pa,
-		pa + size,
-		size,
-		flags
-	);
 	while size.0 >= PTE_CONTROL_SIZE_0 && (va.0 & (PTE_CONTROL_SIZE_1 - 1)) != 0 {
 		vm_level0(vt, va.0, pa.0, flags);
 		va += PTE_CONTROL_SIZE_0;

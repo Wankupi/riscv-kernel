@@ -8,6 +8,7 @@
 #![allow(static_mut_refs)]
 
 use core::{panic::PanicInfo, usize};
+extern crate SyscallAPI;
 
 extern "C" {
 	fn main(a0: usize, a1: usize, a2: usize) -> isize;
@@ -25,12 +26,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 pub mod syscall {
 	use core::arch::asm;
-
-	enum SyscallID {
-		Fork = 57,
-		DebugConsoleWrite = 512,
-		DebugConsolePutchar = 513,
-	}
+	use SyscallAPI::SyscallID;
 	// calling convention for syscalls
 	// a7: syscall number
 	// a0-a6: arguments

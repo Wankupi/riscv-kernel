@@ -24,7 +24,7 @@ with open(asm_file, "w") as f:
     for t in targets:
         f.write(f"""
 \t.section .text._userapp_{t}
-\t.align 2
+\t.align 3
 \t.global _userapp_{t}
 _userapp_{t}:
 \t.incbin "{build_dir}/{t}"

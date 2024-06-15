@@ -2,7 +2,7 @@ use crate::{
 	asm_funcs::*,
 	lang::memset,
 	mm::vm::{kvm_map, PTE},
-	user::{scheduler::{yield_this}, task::Task, trapframe::TrapFrame},
+	user::{scheduler::yield_this, syscall::syscall, task::Task, trapframe::TrapFrame},
 	PAGE_SIZE,
 };
 use alloc::{boxed::Box, task};
@@ -27,7 +27,6 @@ union Func {
 	func: fn(usize) -> !,
 }
 
-
 pub fn run_user() {
 	let offset = _user_ret as usize - _trap_entry as usize;
 	let user_ret_func = Func {
@@ -44,45 +43,48 @@ pub fn run_user() {
 	loop {}
 }
 
-
+fn unknown_error(id: &str) -> ! {
+	let pc: usize;
+	unsafe { asm!("csrr {}, sepc", out(reg) pc) }
+	let pre = b"unknowd trap from (user) addr = ";
+	print!("{}{:x} {}\n", core::str::from_utf8(pre).unwrap(), pc, id);
+	// let mut str: [u8; 256] = [0; 256];
+	// let mut len = pre.len();
+	// for i in 0..pre.len() {
+	// 	str[i] = pre[i];
+	// }
+	// for i in 0..16 {
+	// 	let v: u8 = (pc >> (4 * (15 - i)) & 0xf) as u8;
+	// 	str[len + i] = if v < 10 { v + b'0' } else { v - 10 + b'a' };
+	// }
+	// len += 16;
+	// str[len] = 0;
+	// printk(&str);
+	shutdown();
+}
 
 #[no_mangle]
 pub extern "C" fn kernel_trap_entry() {
-	let unknown_error = || -> ! {
-		let pc: usize;
-		unsafe { asm!("csrr {}, sepc", out(reg) pc) }
-		// error!("Trap! from addr = {:x}", pc);
-		let mut str: [u8; 40] = [0; 40];
-		let pre = b"Trap! from addr = ";
-		let mut len = pre.len();
-		for i in 0..pre.len() {
-			str[i] = pre[i];
-		}
-		for i in 0..16 {
-			let v: u8 = (pc >> (4 * (15 - i)) & 0xf) as u8;
-			str[len + i] = if v < 10 { v + b'0' } else { v - 10 + b'a' };
-		}
-		len += 16;
-		str[len] = 0;
-		printk(&str);
-		shutdown();
-	};
 	let trampoline = unsafe { &mut *(0xffffffff_ffff_e000 as *mut TrapFrame) };
 	let task = unsafe { &mut *trampoline.task.unwrap() };
 	let mut cause: usize;
 	unsafe { asm!("csrr {}, scause", out(reg) cause) }
-	if cause >> 63 == 1 {
-		cause ^= 1 << 63;
+	let interrupt = (cause >> 63) == 1;
+	cause &= (1 << 63) - 1;
+	if interrupt {
 		match cause {
 			5 => {
 				printk(b"\ntimer interrupt\n");
 				yield_this(task);
-				set_timer();
-				return;
 			}
-			_ => unknown_error(),
+			_ => unknown_error("(cause63:1)"),
 		}
 	} else {
-		unknown_error();
+		match cause {
+			8 => syscall(task),
+			_ => unknown_error("(cause63:0)"),
+		}
 	}
+	set_timer();
+	return;
 }

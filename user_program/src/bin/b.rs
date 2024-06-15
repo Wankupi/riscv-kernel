@@ -13,13 +13,10 @@ extern crate sys;
 
 #[no_mangle]
 extern "C" fn main() -> isize {
-	let c: u8;
+	let c: usize;
 	unsafe { asm!("addi {}, tp, 48", out(reg) c) };
-	let uart = 0x10000000 as *mut u8;
 	loop {
-		unsafe {
-			uart.write_volatile(c);
-		}
+		sys::syscall::debug_console_putchar(c as u8);
 	}
 	return 0;
 }

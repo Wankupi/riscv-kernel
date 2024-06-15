@@ -89,8 +89,7 @@ pub fn remove_task(task: &Task) {
 }
 
 #[no_mangle]
-extern "C"
-fn hard_sleep() {
+extern "C" fn hard_sleep() {
 	let mut x = 0;
 	let p = &mut x as *mut i32;
 	for _ in 0..5000000 {

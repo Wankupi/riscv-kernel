@@ -6,9 +6,12 @@
 #![allow(unreachable_code)]
 #![allow(private_interfaces)]
 #![allow(static_mut_refs)]
+#![allow(unused_imports)]
 
+extern crate SyscallAPI;
 extern crate alloc;
 extern crate sbi_rt;
+
 mod asm_funcs;
 mod config;
 #[macro_use]
@@ -21,13 +24,15 @@ mod sync;
 mod test;
 use alloc::boxed::Box;
 use alloc::string::String;
+use driver::uart::uart_device;
 use user::scheduler;
-use user::task::Task;
+use user::task::{Context, Task};
 use user::trapframe::TrapFrame;
 use xmas_elf::ElfFile;
 
 mod user;
 
+use core::mem;
 use core::{alloc::Layout, arch::asm};
 
 pub use crate::arch::shutdown;
@@ -64,76 +69,17 @@ pub extern "C" fn kmain() {
 	}
 	mm::change_to_buddy();
 	test::test_buddy();
-	// for i in 0..10 {
-	// 	log!("time = {:x}", arch::get_clock());
-	// }
-	// test_user();
 	test_elf();
 	shutdown();
 }
 
-fn test_user() {
-	// let _vt = mm::vm::VirtMapPage::create();
-	// let vt = unsafe { &mut *_vt };
-	// let mut _tf = TrapFrame::new_box();
-	// let tf = _tf.as_mut();
-	// tf.kernel_satp = vm::get_kernel_satp();
-	// tf.kernel_sp = boot_stack_top as usize;
-	// tf.kernel_trap = arch::trap::kernel_trap_entry as usize;
-	// tf.hartid = get_tp();
-	// memset(&mut tf.regs as *mut _ as *mut u8, 0, 32 * 8);
-	// // set sp = 0xeeeeeeee_00000000
-	// tf.regs.sp_x2 = 0xeeeeeeee_00000000;
-	// tf.regs.pc = 0x1_00000000;
-	// tf.satp = (_vt as usize >> 12) | (8 << 60);
-	// kvm_map(
-	// 	0xffffffff_ffff_e000,
-	// 	tf as *const TrapFrame as usize,
-	// 	4096,
-	// 	PTE::RW,
-	// );
-	// vm_map_trampoline(vt);
-	// let text = mm::alloc(Layout::from_size_align(4096, 4096).unwrap());
-	// vm_map(vt, tf.regs.pc, text as usize, 4096, PTE::RX | PTE::U);
-	// vm_map(vt, uart_base_addr, uart_base_addr, 4096, PTE::RW | PTE::U);
-	// let program: [u32; 4] = [
-	// 	0x10000537, // lui a0,0x10000
-	// 	0x0310059b, // addiw a1,zero,0x31
-	// 	0x00b50023, // sb a1,0(a0)
-	// 	0xbfd5,     // j 0
-	// ];
-	// for i in 0..program.len() {
-	// 	unsafe {
-	// 		(text as *mut u32).add(i).write(program[i]);
-	// 	}
-	// }
-	// log!("done write content");
-
-	// let offset = _user_ret as usize - _trap_entry as usize;
-	// let user_ret_func = Func { v: offset + 0xffffffff_ffff_f000 };
-	// set_timer();
-	// let sie = 1 << 9 | 1 << 5 | 1 << 1;
-	// unsafe {
-	// 	asm!("csrw sie, {}", in(reg) sie);
-	// 	asm!("csrw stvec, {}", in(reg) (0xffffffff_ffff_f000 as usize));
-	// 	// asm!("jr {}", in(reg) user_ret_func);
-	// 	(user_ret_func.func)(0);
-	// }
-}
-
-
-
 fn test_elf() {
-	let start = elf1_start as usize;
-	let end = elf1_end as usize;
-	let data = unsafe { core::slice::from_raw_parts(start as *const u8, end - start) };
-
+	let data = user::get_userapp_by_name("b").unwrap();
 	for i in 0..5 {
 		let mut task = Task::from_elf(data);
-		task.process.trapframe.regs.tp_x4 = (i as isize + ('1' as isize) - ('a' as isize)) as usize;
+		task.process.trapframe.regs.tp_x4 = i;
+		log!("task init pc = {:x}", task.process.trapframe.regs.pc);
 		scheduler::add_task(task);
 	}
-
 	scheduler::schedule_tasks();
 }
-
