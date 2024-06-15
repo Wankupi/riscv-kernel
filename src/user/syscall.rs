@@ -16,5 +16,6 @@ pub fn syscall(task: &mut Task) {
 			shutdown();
 		}
 	}
+	regs.pc += 4;
 	yield_this(task);
 }

@@ -17,6 +17,7 @@ extern "C" fn main() -> isize {
 	unsafe { asm!("addi {}, tp, 48", out(reg) c) };
 	loop {
 		sys::syscall::debug_console_putchar(c as u8);
+		sys::syscall::debug_console_putchar(((c as isize) + ('a' as isize) - ('0' as isize)) as u8);
 	}
 	return 0;
 }
