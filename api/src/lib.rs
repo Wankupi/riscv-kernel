@@ -31,6 +31,8 @@ enum_from! {
 #[derive(Debug)]
 pub enum SyscallID {
 	Fork = 57,
+    Read = 63,
+    Write = 64,
 	Exit = 93,
 	MsgSend = 187,
 	MsgRecv = 188,

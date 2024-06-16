@@ -107,3 +107,53 @@ _user_ret:
 	ld         x31, 240(a0)
 	ld         a0, 72(a0)
 	sret
+
+	.global    _copy_u_s
+	.align     2
+_copy_u_s:
+# a0: src, a1: dst, a2: length, a3: user_satp
+# return a0: 0 if success, -1 if fail
+
+# backup
+# a4: kernel satp
+# a5: kernel stvec
+# a6: kernel sie
+# a7: kernel sstatus
+	csrr       a4, satp
+	csrr       a5, stvec
+	csrr       a6, sie
+	csrr       a7, sstatus
+
+# set csr regs
+	la         t0, .Lerr
+	csrw       stvec, t0
+	la         t0, .Lstart
+	csrw       sepc, t0
+	li         t0, 2
+	csrw       sie, t0
+	li         t0, 1
+	slli       t0, t0, 18
+	csrs       sstatus, t0
+	csrw       satp, a3
+.Lstart:
+# start copy
+	beqz       a2, .Lend
+	lb         t1, 0(a0)
+	sb         t1, 0(a1)
+	addi       a0, a0, 1
+	addi       a1, a1, 1
+	addi       a2, a2, -1
+	j          .Lstart
+.Lend:
+	li         a0, 0
+	j          .Lret
+.Lerr:
+	li         a0, -1
+	j          .Lret
+.Lret:
+# restore
+	csrw       satp, a4
+	csrw       stvec, a5
+	csrw       sie, a6
+	csrw       sstatus, a7
+	ret

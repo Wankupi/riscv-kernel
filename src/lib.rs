@@ -74,12 +74,8 @@ pub extern "C" fn kmain() {
 }
 
 fn test_elf() {
-	let data = user::get_userapp_by_name("b").unwrap();
-	for i in 0..5 {
-		let mut task = Task::from_elf(data);
-		task.process.trapframe.regs.tp_x4 = i;
-		log!("task init pc = {:x}", task.process.trapframe.regs.pc);
-		scheduler::add_task(task);
-	}
+	let data = user::get_userapp_by_name("c").unwrap();
+	let task = Task::from_elf(data);
+	scheduler::add_task(task);
 	scheduler::schedule_tasks();
 }
