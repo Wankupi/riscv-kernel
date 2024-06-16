@@ -7,21 +7,34 @@
 #![allow(private_interfaces)]
 #![allow(static_mut_refs)]
 
+macro_rules! enum_from {
+    ($(#[$meta:meta])* $vis:vis enum $name:ident {
+        $($(#[$vmeta:meta])* $vname:ident = $val:expr,)*
+    }) => {
+        $(#[$meta])*
+        $vis enum $name {
+            $($(#[$vmeta])* $vname = $val,)*
+        }
+
+        impl From<usize> for $name {
+            fn from(id: usize) -> Self {
+                match id {
+                    $($val => $name::$vname,)*
+                    _ => panic!("unknown syscall id: {}", id),
+                }
+            }
+        }
+    }
+}
+
+enum_from! {
 #[derive(Debug)]
 pub enum SyscallID {
 	Fork = 57,
+	Exit = 93,
+	MsgSend = 187,
+	MsgRecv = 188,
 	DebugConsoleWrite = 512,
 	DebugConsolePutchar = 513,
 }
-
-
-impl From<usize> for SyscallID {
-	fn from(id: usize) -> Self {
-		match id {
-			57 => SyscallID::Fork,
-			512 => SyscallID::DebugConsoleWrite,
-			513 => SyscallID::DebugConsolePutchar,
-			_ => panic!("unknown syscall id: {}", id),
-		}
-	}
 }
