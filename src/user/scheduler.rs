@@ -51,11 +51,19 @@ static mut scheduler: Scheduler = Scheduler::new();
 static mut scheduler_context: Context = Context::new();
 
 pub fn schedule_tasks() {
+	let mut times = 0;
 	loop {
 		if let Some(task) = unsafe { scheduler.schedule() } {
 			set_trampoline(task.process.trapframe.as_ref());
 			unsafe {
 				_switch(&mut scheduler_context, &mut task.context);
+			}
+			times = 0;
+		} else {
+			times += 1;
+			println!("no task to run");
+			for i in 0..(times * times) {
+				hard_sleep();
 			}
 		}
 	}
@@ -92,7 +100,7 @@ pub fn remove_task(task: &Task) {
 extern "C" fn hard_sleep() {
 	let mut x = 0;
 	let p = &mut x as *mut i32;
-	for _ in 0..5000000 {
+	for _ in 0..50000000 {
 		unsafe { p.write_volatile(10) }
 	}
 }
