@@ -43,23 +43,13 @@ pub fn run_user() {
 	loop {}
 }
 
-fn unknown_error(id: &str) -> ! {
+fn unknown_error(cause: usize) -> ! {
 	let pc: usize;
 	unsafe { asm!("csrr {}, sepc", out(reg) pc) }
-	let pre = b"unknowd trap from (user) addr = ";
-	print!("{}{:x} {}\n", core::str::from_utf8(pre).unwrap(), pc, id);
-	// let mut str: [u8; 256] = [0; 256];
-	// let mut len = pre.len();
-	// for i in 0..pre.len() {
-	// 	str[i] = pre[i];
-	// }
-	// for i in 0..16 {
-	// 	let v: u8 = (pc >> (4 * (15 - i)) & 0xf) as u8;
-	// 	str[len + i] = if v < 10 { v + b'0' } else { v - 10 + b'a' };
-	// }
-	// len += 16;
-	// str[len] = 0;
-	// printk(&str);
+	let trampoline = unsafe { &mut *(0xffffffff_ffff_e000 as *mut TrapFrame) };
+	let task = unsafe { &mut *trampoline.task.unwrap() };
+	let pid = task.process.pid;
+	println!("[{}] unknown trap. pc: {:x} cause: {:x}", pid, pc, cause);
 	shutdown();
 }
 
@@ -75,14 +65,14 @@ pub extern "C" fn kernel_trap_entry() {
 		match cause {
 			5 => {
 				printk(b"\ntimer interrupt\n");
-				yield_this(task);
+				yield_this();
 			}
-			_ => unknown_error("(cause63:1)"),
+			_ => unknown_error(cause),
 		}
 	} else {
 		match cause {
 			8 => syscall(task),
-			_ => unknown_error("(cause63:0)"),
+			_ => unknown_error(cause),
 		}
 	}
 	set_timer();

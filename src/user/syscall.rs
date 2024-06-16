@@ -1,5 +1,11 @@
 use crate::{
-	arch::regs, driver::uart::uart_device, mm::allocator::alloc_size_align, print::printk, shutdown, user::{copy_from_user, scheduler}
+	arch::regs,
+	driver::uart::uart_device,
+	mm::allocator::alloc_size_align,
+	print::printk,
+	shutdown,
+	user::{copy_from_user, scheduler},
+	IPC::msg::{sys_msg_recv, sys_msg_send},
 };
 
 use super::{scheduler::yield_this, task::Task};
@@ -20,12 +26,14 @@ pub fn syscall(task: &mut Task) {
 			scheduler::remove_task(task);
 		}
 		SyscallID::Write => sys_write(task),
+		SyscallID::MsgSend => sys_msg_send(task),
+		SyscallID::MsgRecv => sys_msg_recv(task),
 		_ => {
 			log!("unknown syscall id: {:?}", syscall_id);
 			shutdown();
 		}
 	}
-	yield_this(task);
+	yield_this();
 }
 
 fn sys_write(task: &mut Task) {

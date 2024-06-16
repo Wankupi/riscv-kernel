@@ -2,7 +2,7 @@ use core::mem::size_of;
 
 use alloc::boxed::Box;
 
-use crate::arch::trap::run_user;
+use crate::arch::{regs::Registers, trap::run_user};
 
 use super::{
 	process::{self, KernelStack, Process},
@@ -93,5 +93,8 @@ impl Task {
 	}
 	pub fn get_tramframe(&mut self) -> *mut TrapFrame {
 		self.process.trapframe.as_ref() as *const TrapFrame as *mut TrapFrame
+	}
+	pub fn get_regs(&mut self) -> &mut Registers {
+		&mut self.process.trapframe.as_mut().regs
 	}
 }

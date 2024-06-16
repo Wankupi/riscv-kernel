@@ -16,6 +16,7 @@ mod asm_funcs;
 mod config;
 #[macro_use]
 mod print;
+mod IPC;
 mod arch;
 mod driver;
 mod lang;
@@ -68,14 +69,22 @@ pub extern "C" fn kmain() {
 		mm::buddy_allocator.init(mm::simple_allocator.get_control_range().1, 0x84000000);
 	}
 	mm::change_to_buddy();
-	test::test_buddy();
+	// test::test_buddy();
+	IPC::msg::init();
 	test_elf();
 	shutdown();
 }
 
 fn test_elf() {
-	let data = user::get_userapp_by_name("c").unwrap();
-	let task = Task::from_elf(data);
-	scheduler::add_task(task);
+	for _ in 0..5 {
+		let data = user::get_userapp_by_name("B_ipc_1").unwrap();
+		let task = Task::from_elf(data);
+		scheduler::add_task(task);
+	}
+	{
+		let data = user::get_userapp_by_name("B_ipc_2").unwrap();
+		let task = Task::from_elf(data);
+		scheduler::add_task(task);
+	}
 	scheduler::schedule_tasks();
 }

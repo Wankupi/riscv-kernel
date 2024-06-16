@@ -34,6 +34,7 @@ pub enum SyscallID {
     Read = 63,
     Write = 64,
 	Exit = 93,
+    MsgGet = 186,
 	MsgSend = 187,
 	MsgRecv = 188,
 	DebugConsoleWrite = 512,

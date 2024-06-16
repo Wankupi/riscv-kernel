@@ -24,7 +24,7 @@ pub fn get_userapp_by_name(name: &str) -> Option<&'static [u8]> {
 	return None;
 }
 
-fn copy_from_user(kdst: &mut [u8], usrc: *const u8, len: usize, task: &mut Task) -> isize {
+pub fn copy_from_user(kdst: &mut [u8], usrc: *const u8, len: usize, task: &mut Task) -> isize {
 	if kdst.len() < len {
 		panic!("copy_from_user: buffer is too small");
 	}
@@ -40,7 +40,7 @@ fn copy_from_user(kdst: &mut [u8], usrc: *const u8, len: usize, task: &mut Task)
 	)
 }
 
-fn copy_to_user(udst: *mut u8, ksrc: &[u8], len: usize, task: &mut Task) -> isize {
+pub fn copy_to_user(udst: *mut u8, ksrc: &[u8], len: usize, task: &mut Task) -> isize {
 	if ksrc.len() < len {
 		panic!("copy_to_user: buffer is too small");
 	}

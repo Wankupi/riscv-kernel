@@ -65,6 +65,15 @@ pub mod syscall {
 		let r = syscall3(SyscallID::Read, fd, buf.as_ptr() as usize, len);
 		r as isize
 	}
+	pub fn msg_send(key: usize, data: &[u8]) -> isize {
+		let r = syscall3(SyscallID::MsgSend, key, data.as_ptr() as usize, data.len());
+		r as isize
+	}
+	pub fn msg_recv(key: usize, buf: &mut [u8]) -> isize {
+		let len = buf.len();
+		let r = syscall3(SyscallID::MsgRecv, key, buf.as_ptr() as usize, len);
+		r as isize
+	}
 }
 
 pub use syscall::*;

@@ -41,13 +41,21 @@ impl KernelStack {
 }
 
 pub struct Process {
-	// pub name: [u8; 16],
+	pub pid: usize,
 	pub pagetable: Box<VirtMapPage>,
 	pub static_data: Vec<Section>,
 	pub trapframe: Box<TrapFrame>,
 	pub kernel_stack: Box<KernelStack>,
 	pub stack: usize,
 	pub heap: usize,
+}
+static mut pid_cnt: usize = 0;
+fn get_new_pid() -> usize {
+	unsafe {
+		let pid = pid_cnt;
+		pid_cnt += 1;
+		return pid + 1;
+	}
 }
 
 impl Process {
@@ -67,6 +75,7 @@ pub fn create_process(elf_data: &[u8]) -> Result<Box<Process>, &'static str> {
 	}
 	let (page_table, static_data) = create_pagetable_from_elf(&elf);
 	let mut process = Process {
+		pid: get_new_pid(),
 		pagetable: page_table,
 		static_data,
 		trapframe: TrapFrame::new_box(),

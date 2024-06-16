@@ -1,8 +1,11 @@
+use core::arch::asm;
+
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
 	_switch,
 	mm::vm::{kvm_map, PTE},
+	print::printk,
 	PAGE_SIZE,
 };
 
@@ -27,11 +30,17 @@ impl Scheduler {
 	pub fn add_task(&mut self, task: Box<Task>) {
 		self.next_list.push(task);
 	}
-	pub fn remove_task(&mut self, task: &Task) {
-		self.cur_list
-			.retain(|t| !(t.as_ref() as *const Task == task as *const Task));
-		self.next_list
-			.retain(|t| !(t.as_ref() as *const Task == task as *const Task));
+	pub fn remove_task(&mut self, task: &Task) -> Box<Task> {
+		let ret;
+		let filter = |t: &Box<Task>| t.as_ref() as *const Task == task as *const Task;
+		if let Some(idx) = self.cur_list.iter().position(filter) {
+			ret = self.cur_list.remove(idx);
+		} else if let Some(idx) = self.next_list.iter().position(filter) {
+			ret = self.next_list.remove(idx);
+		} else {
+			panic!("task not found");
+		}
+		ret
 	}
 	pub fn schedule(&mut self) -> Option<&mut Task> {
 		if self.cur_list.is_empty() && self.next_list.is_empty() {
@@ -55,21 +64,21 @@ pub fn schedule_tasks() {
 	loop {
 		if let Some(task) = unsafe { scheduler.schedule() } {
 			set_trampoline(task.process.trapframe.as_ref());
-			unsafe {
-				_switch(&mut scheduler_context, &mut task.context);
-			}
+			unsafe { _switch(&mut scheduler_context, &mut task.context) };
 			times = 0;
 		} else {
-			times += 1;
 			println!("no task to run");
-			for i in 0..(times * times) {
+			times += 1;
+			for _ in 0..(times * times) {
 				hard_sleep();
 			}
 		}
 	}
 }
 
-pub fn yield_this(task: &mut Task) {
+pub fn yield_this() {
+	let trampoline = unsafe { &mut *(0xffffffff_ffff_e000 as *mut TrapFrame) };
+	let task = unsafe { &mut *trampoline.task.unwrap() };
 	unsafe {
 		_switch(&mut task.context, &mut scheduler_context);
 		hard_sleep();
@@ -77,12 +86,9 @@ pub fn yield_this(task: &mut Task) {
 }
 
 fn set_trampoline(task_trapframe: *const TrapFrame) {
-	kvm_map(
-		0xffffffff_ffff_e000,
-		task_trapframe as usize,
-		PAGE_SIZE,
-		PTE::RW,
-	);
+	let addr = 0xffffffff_ffff_e000;
+	kvm_map(addr, task_trapframe as usize, PAGE_SIZE, PTE::RW);
+	unsafe { asm!("sfence.vma {}, zero", in(reg) addr) };
 }
 
 pub fn add_task(task: Box<Task>) {
@@ -90,10 +96,8 @@ pub fn add_task(task: Box<Task>) {
 		scheduler.add_task(task);
 	}
 }
-pub fn remove_task(task: &Task) {
-	unsafe {
-		scheduler.remove_task(task);
-	}
+pub fn remove_task(task: &Task) -> Box<Task> {
+	unsafe { scheduler.remove_task(task) }
 }
 
 #[no_mangle]
