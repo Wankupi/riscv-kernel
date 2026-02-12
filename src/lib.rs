@@ -19,10 +19,12 @@ mod print;
 mod IPC;
 mod arch;
 mod driver;
+mod irq;
 mod lang;
 mod mm;
 mod sync;
 mod test;
+
 use alloc::boxed::Box;
 use alloc::string::String;
 use driver::uart::uart_device;
@@ -52,7 +54,7 @@ use crate::config::*;
 
 #[no_mangle]
 pub extern "C" fn kmain_early() {
-	driver::uart::uart_device.init(uart_base_addr as usize);
+	unsafe { driver::uart::uart_device.init(uart_base_addr as usize) };
 	test::test_dynamic_function();
 	success!("start kmain early init");
 	mm::simple_allocator.init(ekernel as usize);
@@ -71,20 +73,19 @@ pub extern "C" fn kmain() {
 	mm::change_to_buddy();
 	// test::test_buddy();
 	IPC::msg::init();
+	irq::plic_init();
+	println!("hello");
 	test_elf();
 	shutdown();
 }
 
 fn test_elf() {
-	for _ in 0..5 {
-		let data = user::get_userapp_by_name("B_ipc_1").unwrap();
-		let task = Task::from_elf(data);
-		scheduler::add_task(task);
-	}
-	{
-		let data = user::get_userapp_by_name("B_ipc_2").unwrap();
-		let task = Task::from_elf(data);
-		scheduler::add_task(task);
-	}
+	let data = user::get_userapp_by_name("A_print_1").unwrap();
+	let task = Task::from_elf(data);
+	scheduler::add_task(task);
+	let data = user::get_userapp_by_name("A_print_1").unwrap();
+	let mut task = Task::from_elf(data);
+	task.process.trapframe.regs.tp_x4 = 1;
+	scheduler::add_task(task);
 	scheduler::schedule_tasks();
 }

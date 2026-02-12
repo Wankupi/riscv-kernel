@@ -31,13 +31,29 @@ enum_from! {
 #[derive(Debug)]
 pub enum SyscallID {
 	Fork = 57,
-    Read = 63,
-    Write = 64,
+	Exec = 59,
+	Wait = 60,
+	ForkExec = 5759,
+	Read = 63,
+	Write = 64,
 	Exit = 93,
-    MsgGet = 186,
+	MsgGet = 186,
 	MsgSend = 187,
 	MsgRecv = 188,
 	DebugConsoleWrite = 512,
 	DebugConsolePutchar = 513,
 }
+}
+
+mod driver {
+	enum MsgType {
+		Event,
+		Read,
+		Write,
+	}
+	enum UartMsg {
+		DeviceReady,
+		Read(usize),  // size of the max recv buffer
+		Write(usize), // len of the data
+	}
 }

@@ -3,10 +3,11 @@ use core::arch::asm;
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-	_switch,
+	_switch, _wait_for_interrupt,
+	arch::trap::trap_entry_for_interrupt,
 	mm::vm::{kvm_map, PTE},
 	print::printk,
-	PAGE_SIZE,
+	shutdown, PAGE_SIZE,
 };
 
 use super::{
@@ -18,6 +19,7 @@ use super::{
 pub struct Scheduler {
 	cur_list: Vec<Box<Task>>,
 	next_list: Vec<Box<Task>>,
+	died_list: Vec<Box<Task>>,
 }
 
 impl Scheduler {
@@ -25,6 +27,7 @@ impl Scheduler {
 		Scheduler {
 			cur_list: Vec::new(),
 			next_list: Vec::new(),
+			died_list: Vec::new(),
 		}
 	}
 	pub fn add_task(&mut self, task: Box<Task>) {
@@ -60,18 +63,25 @@ static mut scheduler: Scheduler = Scheduler::new();
 static mut scheduler_context: Context = Context::new();
 
 pub fn schedule_tasks() {
-	let mut times = 0;
+	// let mut times = 0;
 	loop {
 		if let Some(task) = unsafe { scheduler.schedule() } {
 			set_trampoline(task.process.trapframe.as_ref());
 			unsafe { _switch(&mut scheduler_context, &mut task.context) };
-			times = 0;
+		// times = 0;
 		} else {
-			println!("no task to run");
-			times += 1;
-			for _ in 0..(times * times) {
-				hard_sleep();
-			}
+			unsafe { _wait_for_interrupt(0x202) };
+			let scause: usize;
+			unsafe { asm!("csrr {}, scause", out(reg) scause) };
+			assert!(
+				scause == 0x8000000000000009,
+				"scause should be due to external interrupt"
+			);
+			trap_entry_for_interrupt();
+		}
+		while unsafe { !scheduler.died_list.is_empty() } {
+			let _task = unsafe { scheduler.died_list.pop().unwrap() };
+			// auto drop
 		}
 	}
 }
@@ -98,6 +108,11 @@ pub fn add_task(task: Box<Task>) {
 }
 pub fn remove_task(task: &Task) -> Box<Task> {
 	unsafe { scheduler.remove_task(task) }
+}
+pub fn add_died_task(task: Box<Task>) {
+	unsafe {
+		scheduler.died_list.push(task);
+	}
 }
 
 #[no_mangle]

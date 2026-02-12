@@ -7,7 +7,7 @@
 #![allow(private_interfaces)]
 #![allow(static_mut_refs)]
 
-use core::{panic::PanicInfo, usize};
+use core::{fmt::{self, Write}, panic::PanicInfo, usize};
 extern crate SyscallAPI;
 
 extern "C" {
@@ -74,6 +74,22 @@ pub mod syscall {
 		let r = syscall3(SyscallID::MsgRecv, key, buf.as_ptr() as usize, len);
 		r as isize
 	}
+	pub fn fork() -> isize {
+		let r = syscall1(SyscallID::Fork, 0);
+		r as isize
+	}
+	pub fn exec(name: &[u8]) -> isize {
+		let r = syscall3(SyscallID::Exec, name.as_ptr() as usize, name.len(), 0);
+		r as isize
+	}
+	pub fn fork_exec(name: &[u8]) -> isize {
+		let r = syscall3(SyscallID::ForkExec, name.as_ptr() as usize, name.len(), 0);
+		r as isize
+	}
+	pub fn wait_pid(pid: isize) -> isize {
+		let r = syscall1(SyscallID::Wait, pid as usize);
+		r as isize
+	}
 }
 
 pub use syscall::*;
@@ -81,3 +97,36 @@ pub use syscall::*;
 pub const STDIN: usize = 0;
 pub const STDOUT: usize = 1;
 pub const STDERR: usize = 2;
+
+
+
+pub fn printk(s: &[u8]) {
+	syscall::write(STDOUT, s);
+}
+
+struct Stdout;
+
+impl Write for Stdout {
+	fn write_str(&mut self, s: &str) -> fmt::Result {
+		printk(s.as_bytes());
+		Ok(())
+	}
+}
+
+pub fn print(args: fmt::Arguments) {
+	Stdout.write_fmt(args).unwrap();
+}
+
+#[macro_export]
+macro_rules! print {
+    ($fmt: expr $(, $($arg: tt)+)?) => {
+        $crate::print(format_args!($fmt $(, $($arg)+)?));
+    }
+}
+
+#[macro_export]
+macro_rules! println {
+    ($fmt: expr $(, $($arg: tt)+)?) => {
+        $crate::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+    }
+}

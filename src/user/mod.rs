@@ -34,7 +34,7 @@ pub fn copy_from_user(kdst: &mut [u8], usrc: *const u8, len: usize, task: &mut T
 	vm_map(vt, 0xffffffff_0000_0000, pa ^ offset, len + offset, PTE::RW);
 	copy_u_s(
 		usrc as *mut u8,
-		0xffffffff_0000_0000 as *mut u8,
+		(0xffffffff_0000_0000 | offset) as *mut u8,
 		len,
 		task.process.trapframe.satp,
 	)
@@ -49,7 +49,7 @@ pub fn copy_to_user(udst: *mut u8, ksrc: &[u8], len: usize, task: &mut Task) -> 
 	let offset = pa & 0xfff;
 	vm_map(vt, 0xffffffff_0000_0000, pa ^ offset, len + offset, PTE::RW);
 	copy_u_s(
-		0xffffffff_0000_0000 as *mut u8,
+		(0xffffffff_0000_0000 | offset) as *mut u8,
 		udst as *mut u8,
 		len,
 		task.process.trapframe.satp,

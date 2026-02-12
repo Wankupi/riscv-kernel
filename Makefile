@@ -8,9 +8,9 @@ CARGO_MODE ?= release
 # run setting
 QEMU_MEMORY_SIZE = 128M
 QEMU_SET_BIOS = false
-QEMU_SET_BIOS_CONFIG = /home/wkp/codes/kernel/build/sbi.bin
+QEMU_SET_BIOS_CONFIG = /home/wkp/codes/riscv-sbi/build/sbi.bin
 QEMU_SET_SMP = false
-QEMU_SET_SMP_CONFIG = 2
+QEMU_SET_SMP_CONFIG = 1
 
 # toolchain
 CARGO = cargo

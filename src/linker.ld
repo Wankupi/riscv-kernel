@@ -1,10 +1,11 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-BASE_ADDRESS = 0x80200000;
+PHYS_RAM_BASE = 0x40000000;
+TEXT_OFFSET = 0x00200000;
 
 SECTIONS
 {
-    . = BASE_ADDRESS;
+    . = PHYS_RAM_BASE + TEXT_OFFSET;
     skernel = .;
 
     stext = .;
@@ -33,16 +34,17 @@ SECTIONS
     }
     edata = .;
 
+    ekernel = .;
+
     . = ALIGN(4K);
     sbss = .;
-    .bss : {
+    .bss (NOLOAD) : {
         *(.bss.stack)
         *(.bss .bss.*)
         *(.sbss .sbss.*)
     }
     ebss = .;
 
-    ekernel = .;
     . = ALIGN(4K);
 
     /DISCARD/ : {

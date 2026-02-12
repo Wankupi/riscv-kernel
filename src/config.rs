@@ -8,3 +8,5 @@ pub const PA_SIZE: usize = 1 << PA_WIDTH;
 pub const PPN_WIDTH: usize = PA_WIDTH - PAGE_SIZE_BITS;
 pub const PPN_SIZE: usize = 1 << PPN_WIDTH;
 pub const VT_MAP_SIZE: usize = 4096 / 8;
+
+pub const PLIC: usize = 0x0c00_0000;

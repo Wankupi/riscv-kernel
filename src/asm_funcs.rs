@@ -16,6 +16,7 @@ extern "C" {
 	pub fn boot_stack_top();
 	pub fn _switch(from: &mut Context, to: &mut Context);
 	pub fn _copy_u_s(src: *mut u8, dst: *mut u8, len: usize, user_satp: usize) -> isize;
+	pub fn _wait_for_interrupt(sie: usize);
 }
 
 pub fn copy_u_s(src: *mut u8, dst: *mut u8, len: usize, user_satp: usize) -> isize {

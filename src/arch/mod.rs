@@ -22,7 +22,6 @@ pub fn get_kaslr_seed(_dtb_pa: usize) -> usize {
 
 pub fn get_clock() -> u64 {
 	let time: u64;
-	// unsafe { asm!("csrr {}, time", out(reg) time) }
 	unsafe { asm!("rdtime {}", out(reg) time) }
 	time
 }

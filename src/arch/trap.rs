@@ -1,5 +1,7 @@
 use crate::{
 	asm_funcs::*,
+	driver::uart::uart_device,
+	irq::plic_get_context_claim,
 	lang::memset,
 	mm::vm::{kvm_map, PTE},
 	user::{scheduler::yield_this, syscall::syscall, task::Task, trapframe::TrapFrame},
@@ -47,7 +49,7 @@ fn unknown_error(cause: usize) -> ! {
 	let pc: usize;
 	unsafe { asm!("csrr {}, sepc", out(reg) pc) }
 	let trampoline = unsafe { &mut *(0xffffffff_ffff_e000 as *mut TrapFrame) };
-	let task = unsafe { &mut *trampoline.task.unwrap() };
+	let task: &mut Task = unsafe { &mut *trampoline.task.unwrap() };
 	let pid = task.process.pid;
 	println!("[{}] unknown trap. pc: {:x} cause: {:x}", pid, pc, cause);
 	shutdown();
@@ -67,6 +69,7 @@ pub extern "C" fn kernel_trap_entry() {
 				printk(b"\ntimer interrupt\n");
 				yield_this();
 			}
+			9 => trap_entry_for_interrupt(),
 			_ => unknown_error(cause),
 		}
 	} else {
@@ -77,4 +80,15 @@ pub extern "C" fn kernel_trap_entry() {
 	}
 	set_timer();
 	return;
+}
+
+pub fn trap_entry_for_interrupt() {
+	let claim = plic_get_context_claim(1);
+	match claim {
+		10 => unsafe { uart_device.device_ready() },
+		_ => {
+			print!("interrupt: {}\n", claim);
+			shutdown();
+		}
+	}
 }

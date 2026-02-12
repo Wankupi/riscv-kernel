@@ -40,7 +40,7 @@ pub struct Context {
 
 impl Context {
 	pub const fn new() -> Self {
-		Context {
+		Self {
 			ra: 0,
 			sp: 0,
 			s0: 0,
@@ -70,19 +70,18 @@ pub struct Task {
 
 impl Task {
 	pub fn new(process: Box<Process>) -> Self {
-		let task = Task {
+		Self {
 			state: TaskState::Ready,
-			process: process,
+			process,
 			context: Context::default(),
 			// cputime: 0,
-		};
-		task
+		}
 	}
 	pub fn new_box(process: Box<Process>) -> Box<Self> {
 		Box::new(Self::new(process))
 	}
 	pub fn from_elf(elf_data: &[u8]) -> Box<Task> {
-		let process = process::create_process(elf_data).unwrap();
+		let process: Box<Process> = process::create_process(elf_data).unwrap();
 		let mut task = Task::new_box(process);
 		task.process.trapframe.task = Some(task.as_mut() as *mut Task as *mut Task);
 		let context = &mut task.context;

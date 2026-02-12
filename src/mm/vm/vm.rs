@@ -1,6 +1,6 @@
-use core::{num::Wrapping, panic};
 use super::{PageTableEntry, VirtMapPage, PTE};
 use crate::{asm_funcs::*, config::*, mm::allocator::simple_allocator};
+use core::{num::Wrapping, panic};
 
 pub struct KernelVirtMapConfig {
 	// pub table_phys_addr: *mut VirtMapPage,
@@ -63,8 +63,6 @@ pub fn init_kvm() {
 		simple_allocator_range.1 - simple_allocator_range.0,
 		PTE::R | PTE::W,
 	);
-	log!("qqqaq");
-
 	vm_map(
 		k_vt,
 		0xffffffff_ffff_f000,
@@ -80,6 +78,7 @@ pub fn init_kvm() {
 		1024 * 1024 * 128,
 		PTE::R | PTE::W,
 	);
+	vm_map(k_vt, PLIC, PLIC, 0x400_0000, PTE::R | PTE::W);
 }
 
 fn entry_to_next_table(entry: &PageTableEntry) -> &mut VirtMapPage {

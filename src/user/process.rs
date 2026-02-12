@@ -1,6 +1,6 @@
 use core::{alloc::Layout, mem::size_of};
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeSet, vec::Vec};
 use xmas_elf::{
 	program::{ProgramHeader, SegmentData},
 	ElfFile,
@@ -49,12 +49,15 @@ pub struct Process {
 	pub stack: usize,
 	pub heap: usize,
 }
+
+pub static mut PidSet: BTreeSet<usize> = BTreeSet::new();
 static mut pid_cnt: usize = 0;
 fn get_new_pid() -> usize {
 	unsafe {
-		let pid = pid_cnt;
 		pid_cnt += 1;
-		return pid + 1;
+		let pid = pid_cnt;
+		PidSet.insert(pid);
+		return pid;
 	}
 }
 
@@ -157,3 +160,9 @@ fn create_phys_and_copy(header: &ProgramHeader, elf: &ElfFile) -> Section {
 		size: vend - vstart,
 	};
 }
+
+// impl Drop for Process {
+// 	fn drop(&mut self) {
+// 		log!("process drop");
+// 	}
+// }
