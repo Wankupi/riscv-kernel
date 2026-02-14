@@ -27,7 +27,6 @@ CARGO_COPYOUT_DIR = $(PROJECT_DIR)/$(BUILD_DIR)
 CARGO_ARGS = --target-dir '$(CARGO_DIST_DIR)' -Z unstable-options --out-dir '$(CARGO_COPYOUT_DIR)'
 LIB_KERNEL = $(CARGO_DIST_DIR)/riscv64gc-unknown-none-elf/$(CARGO_MODE)/libkernel.a
 
-LINK_CONFIG = -O2
 QEMU_RUN_ARGS = -nographic -machine virt -m $(QEMU_MEMORY_SIZE)
 
 ifeq ($(QEMU_SET_BIOS),true)
@@ -62,16 +61,19 @@ all: user $(OS_BIN) dump
 user:
 	make -C user_program
 
+COMMON_FLAGS = -march=rv64gc -mabi=lp64d -mcmodel=medany -ffreestanding -nostdlib -nostartfiles -Wall -O2
+LINK_CONFIG = -O2 -pie --emit-relocs
+
 $(ASM_TARGETS): $(BUILD_DIR)/%.o: %.S
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ -g -I $(SRC_DIR)
+	@$(CC) -c $< -o $@ -g -I $(SRC_DIR) ${COMMON_FLAGS}
 
 $(C_TARGETS): $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ -g -fPIC
+	@$(CC) -c $< -o $@ -g $(COMMON_FLAGS)
 
-$(LIB_KERNEL): $(RUST_FILES) .cargo/config.toml Cargo.toml
-	@$(CARGO) build $(CARGO_ARGS) 2>/dev/null
+$(LIB_KERNEL): user $(RUST_FILES) .cargo/config.toml Cargo.toml
+	@$(CARGO) build $(CARGO_ARGS)
 
 $(OS_ELF): $(SRC_DIR)/linker.ld $(ASM_TARGETS) $(LIB_KERNEL) $(C_TARGETS)
 	@mkdir -p $(BUILD_DIR)

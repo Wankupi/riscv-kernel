@@ -7,6 +7,8 @@ extern "C" {
 	pub fn srodata();
 	pub fn erodata();
 	pub fn sdata();
+	pub static __rela_dyn_start: u8;
+	pub static __rela_dyn_end: u8;
 	pub fn edata();
 	pub fn sbss();
 	pub fn ebss();

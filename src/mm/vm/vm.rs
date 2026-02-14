@@ -29,7 +29,7 @@ pub fn init_kvm() {
 	unsafe {
 		kvm_config.satp = k_vt.to_satp();
 		kvm_config.v2p_offset_text = 0;
-		// kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
+		kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
 	}
 	// kernel source code
 	kvm_map_early(stext as usize, etext as usize, PTE::R | PTE::X);

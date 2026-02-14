@@ -1,6 +1,6 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-PHYS_RAM_BASE = 0x40000000;
+PHYS_RAM_BASE = 0x80000000;
 TEXT_OFFSET = 0x00200000;
 
 SECTIONS
@@ -32,6 +32,14 @@ SECTIONS
         *(.data .data.*)
         *(.sdata .sdata.*)
     }
+    .rel.dyn : {
+		*(.rel.dyn*)
+	}
+	.rela.dyn : ALIGN(8) {
+		__rela_dyn_start = .;
+		*(.rela .rela*)
+		__rela_dyn_end = .;
+	}
     edata = .;
 
     ekernel = .;

@@ -5,5 +5,9 @@ target = "riscv64gc-unknown-none-elf"
 
 [target.riscv64gc-unknown-none-elf]
 rustflags = [
-	"-Cforce-frame-pointers=yes"
+	"-Cforce-frame-pointers=yes",
+	"-Ccode-model=medium",
+	# Keep the following flag commented out
+	# If enable, it would create GOT entries for all symbols, which would cause the kernel to fail to boot
+	# "-Crelocation-model=pie",
 ]

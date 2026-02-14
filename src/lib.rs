@@ -41,6 +41,8 @@ use core::{alloc::Layout, arch::asm};
 pub use crate::arch::shutdown;
 use crate::arch::{get_tp, set_timer};
 use crate::lang::memset;
+use crate::mm::vm::kvm_config;
+use crate::print::{print_hex, printk};
 use asm_funcs::*;
 use mm::vm::{self, kvm_map, vm_map, PTE};
 pub use mm::{alloc, dealloc};
@@ -52,14 +54,39 @@ pub static mut dtb_addr: usize = 0;
 
 use crate::config::*;
 
+
+
+fn fix_rela_dyn(base_addr: usize) {
+	#[repr(C)]
+	struct RelaDynEntry {
+		r_offset: usize,
+		r_info: usize,
+		r_addend: isize,
+	}
+	let rela_start = core::ptr::addr_of!(__rela_dyn_start) as usize;
+	let rela_end = core::ptr::addr_of!(__rela_dyn_end) as usize;
+	unsafe {
+		let mut p = rela_start as *const RelaDynEntry;
+		while (p as usize) < rela_end {
+			let e = &*p;
+			let to_write = e.r_offset as *mut usize;
+			if e.r_info == 0x3 {
+				*to_write = base_addr + e.r_addend as usize;
+			}
+			p = p.add(1);
+		}
+	}
+}
+
 #[no_mangle]
 pub extern "C" fn kmain_early() {
 	unsafe { driver::uart::uart_device.init(uart_base_addr as usize) };
-	test::test_dynamic_function();
+	fix_rela_dyn(0x00000000);
 	success!("start kmain early init");
 	mm::simple_allocator.init(ekernel as usize);
 	mm::vm::init_kvm();
 	success!("end kmain early init");
+	fix_rela_dyn(unsafe { kvm_config.v2p_offset_text });
 }
 
 #[no_mangle]
@@ -75,7 +102,7 @@ pub extern "C" fn kmain() {
 	IPC::msg::init();
 	irq::plic_init();
 	println!("hello");
-	test_elf();
+	// test_elf();
 	shutdown();
 }
 

@@ -28,6 +28,43 @@ pub fn printk(s: &[u8]) {
 	}
 }
 
+pub fn print_hex(mut v: usize) {
+	if v == 0 {
+		printk(b"0");
+		return;
+	}
+	let mut buf = [0u8; core::mem::size_of::<usize>() * 2];
+	let mut i = buf.len();
+	while v != 0 {
+		let digit = (v & 0xF) as u8;
+		i -= 1;
+		buf[i] = if digit < 10 {
+			b'0' + digit
+		} else {
+			b'a' + (digit - 10)
+		};
+		v >>= 4;
+	}
+	printk(&buf[i..]);
+}
+
+pub fn print_dec(mut v: usize) {
+	if v == 0 {
+		printk(b"0");
+		return;
+	}
+	let mut buf = [0u8; 20];
+	let mut i = buf.len();
+	while v != 0 {
+		let digit = (v % 10) as u8;
+		i -= 1;
+		buf[i] = b'0' + digit;
+		v /= 10;
+	}
+	printk(&buf[i..]);
+}
+
+
 struct Stdout;
 
 impl Write for Stdout {
