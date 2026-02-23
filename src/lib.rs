@@ -80,7 +80,14 @@ fn fix_rela_dyn(base_addr: usize) {
 
 #[no_mangle]
 pub extern "C" fn kmain_early() {
-	unsafe { driver::uart::uart_device.init(uart_base_addr as usize) };
+	unsafe {
+		driver::uart::uart_device.init_with_config(
+			uart_base_addr as usize,
+			uart_reg_io_width,
+			uart_reg_shift,
+		)
+	};
+	// printk(b"kmain_early started\n");
 	fix_rela_dyn(0x00000000);
 	success!("start kmain early init");
 	mm::simple_allocator.init(ekernel as usize);

@@ -16,6 +16,8 @@ use uart_regs::*;
 
 pub struct UartRaw {
 	base: UnsafeCell<usize>,
+	io_width: UnsafeCell<usize>,
+	reg_shift: UnsafeCell<usize>,
 	buffer: [u8; 1024],
 	len: usize,
 }
@@ -24,18 +26,48 @@ impl UartRaw {
 	pub const fn new(device_addr: usize) -> UartRaw {
 		UartRaw {
 			base: UnsafeCell::new(device_addr),
+			io_width: UnsafeCell::new(1),
+			reg_shift: UnsafeCell::new(0),
 			buffer: [0; 1024],
 			len: 0,
 		}
 	}
+	fn reg_addr(&self, reg: usize) -> usize {
+		unsafe { *self.base.get() + (reg << *self.reg_shift.get()) }
+	}
 	fn store(&self, reg: usize, val: u8) {
-		unsafe { ((*self.base.get() + reg) as *mut u8).write_volatile(val) }
+		let addr = self.reg_addr(reg);
+		let io_width = unsafe { *self.io_width.get() };
+		unsafe {
+			match io_width {
+				1 => (addr as *mut u8).write_volatile(val),
+				2 => (addr as *mut u16).write_volatile(val as u16),
+				4 => (addr as *mut u32).write_volatile(val as u32),
+				_ => (addr as *mut u8).write_volatile(val),
+			}
+		}
 	}
 	fn load(&self, reg: usize) -> u8 {
-		unsafe { ((*self.base.get() + reg) as *mut u8).read_volatile() }
+		let addr = self.reg_addr(reg);
+		let io_width = unsafe { *self.io_width.get() };
+		unsafe {
+			match io_width {
+				1 => (addr as *mut u8).read_volatile(),
+				2 => (addr as *mut u16).read_volatile() as u8,
+				4 => (addr as *mut u32).read_volatile() as u8,
+				_ => (addr as *mut u8).read_volatile(),
+			}
+		}
 	}
 	pub fn init(&self, addr: usize) {
+		self.init_with_config(addr, 1, 0);
+	}
+	pub fn init_with_config(&self, addr: usize, io_width: usize, reg_shift: usize) {
 		unsafe { *self.base.get() = addr }
+		unsafe {
+			*self.io_width.get() = io_width;
+			*self.reg_shift.get() = reg_shift;
+		}
 		// return; // sbi will initialize the uart
 		// self.store(ier, 0);
 		// self.store(lcr, 1 << 7);

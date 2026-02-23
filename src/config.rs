@@ -1,4 +1,8 @@
 pub const uart_base_addr: usize = 0x10000000;
+pub const uart_reg_io_width: usize = 1;
+pub const uart_reg_shift: usize = 0;
+// pub const uart_reg_io_width: usize = 4;
+// pub const uart_reg_shift: usize = 2;
 pub const system_reset_addr: usize = 0x100000;
 
 pub const PAGE_SIZE_BITS: usize = 12;
