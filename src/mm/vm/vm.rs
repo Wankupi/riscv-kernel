@@ -32,13 +32,13 @@ pub fn init_kvm() {
 		kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
 	}
 	// kernel source code
-	kvm_map_early(stext as usize, etext as usize, PTE::R | PTE::X);
+	kvm_map_early(stext as *const () as usize, etext as *const () as usize, PTE::R | PTE::X);
 	// kernel rodata
-	kvm_map_early(srodata as usize, erodata as usize, PTE::R);
+	kvm_map_early(srodata as *const () as usize, erodata as *const () as usize, PTE::R);
 	// kernel data
-	kvm_map_early(sdata as usize, edata as usize, PTE::R | PTE::W);
+	kvm_map_early(sdata as *const () as usize, edata as *const () as usize, PTE::R | PTE::W);
 	// kernel bss ( with stack )
-	kvm_map_early(sbss as usize, ebss as usize, PTE::R | PTE::W);
+	kvm_map_early(sbss as *const () as usize, ebss as *const () as usize, PTE::R | PTE::W);
 	// uart device
 	vm_map(
 		k_vt,
@@ -66,7 +66,7 @@ pub fn init_kvm() {
 	vm_map(
 		k_vt,
 		0xffffffff_ffff_f000,
-		_trap_entry as usize,
+		_trap_entry as *const () as usize,
 		4096,
 		PTE::R | PTE::X,
 	);

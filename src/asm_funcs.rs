@@ -27,7 +27,7 @@ pub fn copy_u_s(src: *mut u8, dst: *mut u8, len: usize, user_satp: usize) -> isi
 		addr: usize,
 	}
 	let func = Func {
-		addr: _copy_u_s as usize - _trap_entry as usize + 0xffffffff_ffff_f000,
+		addr: _copy_u_s as *const () as usize - _trap_entry as *const () as usize + 0xffffffff_ffff_f000,
 	};
 	unsafe { (func.func)(src, dst, len, user_satp) }
 }

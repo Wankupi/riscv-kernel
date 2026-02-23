@@ -85,7 +85,7 @@ impl Task {
 		let mut task = Task::new_box(process);
 		task.process.trapframe.task = Some(task.as_mut() as *mut Task as *mut Task);
 		let context = &mut task.context;
-		context.ra = run_user as usize;
+		context.ra = run_user as *const () as usize;
 		context.sp =
 			task.process.kernel_stack.as_ref() as *const _ as usize + size_of::<KernelStack>();
 		task

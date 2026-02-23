@@ -105,7 +105,7 @@ pub fn create_process(elf_data: &[u8]) -> Result<Box<Process>, &'static str> {
 	let tf = process.trapframe.as_mut();
 	tf.kernel_satp = get_kernel_satp();
 	tf.kernel_sp = process.kernel_stack.data.as_ptr() as usize + size_of::<KernelStack>();
-	tf.kernel_trap = kernel_trap_entry as usize;
+	tf.kernel_trap = kernel_trap_entry as *const () as usize;
 	tf.hartid = 0;
 	tf.satp = process.pagetable.to_satp();
 	return Ok(Box::new(process));

@@ -21,7 +21,7 @@ fn set_trap(addr: usize) {
 	unsafe { asm!("csrw stvec, {}", in(reg) addr) }
 }
 pub fn trap_init() {
-	set_trap(_trap_entry as usize);
+	set_trap(_trap_entry as *const () as usize);
 }
 
 union Func {
@@ -30,7 +30,7 @@ union Func {
 }
 
 pub fn run_user() {
-	let offset = _user_ret as usize - _trap_entry as usize;
+	let offset = _user_ret as *const () as usize - _trap_entry as *const () as usize;
 	let user_ret_func = Func {
 		v: offset + 0xffffffff_ffff_f000,
 	};

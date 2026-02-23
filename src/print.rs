@@ -81,48 +81,48 @@ pub fn print(args: fmt::Arguments) {
 #[macro_export]
 macro_rules! print {
     ($fmt: expr $(, $($arg: tt)+)?) => {
-        $crate::print::print(format_args!($fmt $(, $($arg)+)?));
+        $crate::print::print(format_args!($fmt $(, $($arg)+)?))
     }
 }
 
 #[macro_export]
 macro_rules! println {
     ($fmt: expr $(, $($arg: tt)+)?) => {
-        $crate::print::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+        $crate::print::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?))
     }
 }
 
 #[macro_export]
 macro_rules! debugmsg {
 	($level: literal, $unit: expr, $fmt: literal $(, $($arg: tt)+)?) => {
-		println!(concat!("<{:26}> ", "\x1b[{}m", "[{:12}]", "\x1b[0m" ," ", $fmt), file!(), $level, $unit $(, $($arg)+)?);
+		println!(concat!("<{:26}> ", "\x1b[{}m", "[{:12}]", "\x1b[0m" ," ", $fmt), file!(), $level, $unit $(, $($arg)+)?)
 	};
 }
 
 #[macro_export]
 macro_rules! success {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(32, function_name!(), $fmt $(, $($arg)+)?);
+		debugmsg!(32, function_name!(), $fmt $(, $($arg)+)?)
 	};
 }
 
 #[macro_export]
 macro_rules! info {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(34, function_name!(), $fmt $(, $($arg)+)?);
+		debugmsg!(34, function_name!(), $fmt $(, $($arg)+)?)
 	};
 }
 
 #[macro_export]
 macro_rules! error {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(31, function_name!(), $fmt $(, $($arg)+)?);
+		debugmsg!(31, function_name!(), $fmt $(, $($arg)+)?)
 	};
 }
 
 #[macro_export]
 macro_rules! log {
 	($fmt: expr $(, $($arg: tt)+)?) => {
-		debugmsg!(33, function_name!(), $fmt $(, $($arg)+)?);
+		debugmsg!(33, function_name!(), $fmt $(, $($arg)+)?)
 	};
 }
