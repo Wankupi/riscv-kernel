@@ -141,37 +141,25 @@ pub fn vm_map(vt: &mut VirtMapPage, va: usize, pa: usize, mut size: usize, flags
 	let mut va = Wrapping(va);
 	let mut pa = Wrapping(pa);
 	let mut size = Wrapping(size);
-	while size.0 >= PTE_CONTROL_SIZE_0 && (va.0 & (PTE_CONTROL_SIZE_1 - 1)) != 0 {
-		vm_level0(vt, va.0, pa.0, flags);
-		va += PTE_CONTROL_SIZE_0;
-		pa += PTE_CONTROL_SIZE_0;
-		size -= PTE_CONTROL_SIZE_0;
+
+	while size.0 > 0 {
+		let stride;
+		if size.0 >= PTE_CONTROL_SIZE_2 && ((va.0 | pa.0) & (PTE_CONTROL_SIZE_2 - 1) == 0) {
+			vm_level2(vt, va.0, pa.0, flags);
+			stride = PTE_CONTROL_SIZE_2;
+		} else if size.0 >= PTE_CONTROL_SIZE_1 && ((va.0 | pa.0) & (PTE_CONTROL_SIZE_1 - 1) == 0) {
+			vm_level1(vt, va.0, pa.0, flags);
+			stride = PTE_CONTROL_SIZE_1;
+		} else if size.0 >= PTE_CONTROL_SIZE_0 && ((va.0 | pa.0) & (PTE_CONTROL_SIZE_0 - 1) == 0) {
+			vm_level0(vt, va.0, pa.0, flags);
+			stride = PTE_CONTROL_SIZE_0;
+		} else {
+			panic!("vm_map: size is too small or va/pa is not aligned to stride");
+		}
+		va += stride;
+		pa += stride;
+		size -= stride;
 	}
-	while size.0 >= PTE_CONTROL_SIZE_1 && (va.0 & (PTE_CONTROL_SIZE_2 - 1)) != 0 {
-		vm_level1(vt, va.0, pa.0, flags);
-		va += PTE_CONTROL_SIZE_1;
-		pa += PTE_CONTROL_SIZE_1;
-		size -= PTE_CONTROL_SIZE_1;
-	}
-	while size.0 >= PTE_CONTROL_SIZE_2 {
-		vm_level2(vt, va.0, pa.0, flags);
-		va += PTE_CONTROL_SIZE_2;
-		pa += PTE_CONTROL_SIZE_2;
-		size -= PTE_CONTROL_SIZE_2;
-	}
-	while size.0 >= PTE_CONTROL_SIZE_1 {
-		vm_level1(vt, va.0, pa.0, flags);
-		va += PTE_CONTROL_SIZE_1;
-		pa += PTE_CONTROL_SIZE_1;
-		size -= PTE_CONTROL_SIZE_1;
-	}
-	while size.0 >= PTE_CONTROL_SIZE_0 {
-		vm_level0(vt, va.0, pa.0, flags);
-		va += PTE_CONTROL_SIZE_0;
-		pa += PTE_CONTROL_SIZE_0;
-		size -= PTE_CONTROL_SIZE_0;
-	}
-	// log!("done");
 }
 
 pub fn vm_map_trampoline(vt: &mut VirtMapPage) {
