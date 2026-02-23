@@ -38,9 +38,11 @@ mod user;
 use core::mem;
 use core::ptr::addr_of;
 use core::{alloc::Layout, arch::asm};
+use fdt::Fdt;
 
 pub use crate::arch::shutdown;
 use crate::arch::{get_tp, set_timer};
+use crate::driver::fdt::{init_fdt, init_stdout};
 use crate::lang::memset;
 use crate::mm::vm::kvm_config;
 use crate::print::{print_hex, printk};
@@ -48,12 +50,8 @@ use asm_funcs::*;
 use mm::vm::{self, kvm_map, vm_map, PTE};
 pub use mm::{alloc, dealloc};
 
-use crate::{arch::trap::trap_init, mm::vm::vm_map_trampoline};
-
-#[no_mangle]
-pub static mut dtb_addr: usize = 0;
-
 use crate::config::*;
+use crate::{arch::trap::trap_init, mm::vm::vm_map_trampoline};
 
 fn fix_rela_dyn(base_addr: usize, rela_offset: usize) {
 	#[repr(C)]
@@ -78,17 +76,12 @@ fn fix_rela_dyn(base_addr: usize, rela_offset: usize) {
 }
 
 #[no_mangle]
-pub extern "C" fn kmain_early() {
-	unsafe {
-		driver::uart::uart_device.init_with_config(
-			uart_base_addr as usize,
-			uart_reg_io_width,
-			uart_reg_shift,
-		)
-	};
+pub extern "C" fn kmain_early(core_id: usize, dtb_addr: *const u8) {
+	init_fdt(dtb_addr);
+	init_stdout();
 	let base_addr = addr_of!(kernel_load_base) as usize;
 	fix_rela_dyn(base_addr, 0);
-	success!("start kmain early init");
+	success!("start kmain early init on core {}", core_id);
 	mm::simple_allocator.init(ekernel as *const () as usize);
 	mm::vm::init_kvm();
 	success!("end kmain early init");

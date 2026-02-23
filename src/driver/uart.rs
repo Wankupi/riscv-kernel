@@ -15,7 +15,7 @@ use core::cell::UnsafeCell;
 use uart_regs::*;
 
 pub struct UartRaw {
-	base: UnsafeCell<usize>,
+	base: UnsafeCell<*const u8>,
 	io_width: UnsafeCell<usize>,
 	reg_shift: UnsafeCell<usize>,
 	buffer: [u8; 1024],
@@ -23,7 +23,7 @@ pub struct UartRaw {
 }
 
 impl UartRaw {
-	pub const fn new(device_addr: usize) -> UartRaw {
+	pub const fn new(device_addr: *const u8) -> UartRaw {
 		UartRaw {
 			base: UnsafeCell::new(device_addr),
 			io_width: UnsafeCell::new(1),
@@ -32,8 +32,8 @@ impl UartRaw {
 			len: 0,
 		}
 	}
-	fn reg_addr(&self, reg: usize) -> usize {
-		unsafe { *self.base.get() + (reg << *self.reg_shift.get()) }
+	fn reg_addr(&self, reg: usize) -> *const u8 {
+		unsafe { (*self.base.get()).wrapping_add(reg << *self.reg_shift.get()) }
 	}
 	fn store(&self, reg: usize, val: u8) {
 		let addr = self.reg_addr(reg);
@@ -59,10 +59,10 @@ impl UartRaw {
 			}
 		}
 	}
-	pub fn init(&self, addr: usize) {
+	pub fn init(&self, addr: *const u8) {
 		self.init_with_config(addr, 1, 0);
 	}
-	pub fn init_with_config(&self, addr: usize, io_width: usize, reg_shift: usize) {
+	pub fn init_with_config(&self, addr: *const u8, io_width: usize, reg_shift: usize) {
 		unsafe { *self.base.get() = addr }
 		unsafe {
 			*self.io_width.get() = io_width;
@@ -110,4 +110,4 @@ impl UartRaw {
 
 unsafe impl Sync for UartRaw {}
 
-pub static mut uart_device: UartRaw = UartRaw::new(0);
+pub static mut uart_device: UartRaw = UartRaw::new(core::ptr::null());

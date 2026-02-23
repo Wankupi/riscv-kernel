@@ -5,7 +5,6 @@
 # External Symbols
     .extern    kmain_early
     .extern    kmain
-    .extern    dtb_addr
     .extern    kvm_config
     .section   .text.entry
     .globl     _start
@@ -24,7 +23,6 @@ _start:
     .word      0x05435352 /* magic2 "RSC\x05" */
     .word      0 /* res3 */
 .L_start:
-    sd         a1, dtb_addr, t0
     la         sp, boot_stack_top
     call       kmain_early
 

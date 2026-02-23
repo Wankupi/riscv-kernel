@@ -24,10 +24,10 @@ LD = riscv64-linux-gnu-ld
 
 CARGO_DIST_DIR = $(PROJECT_DIR)/$(BUILD_DIR)/rust
 CARGO_COPYOUT_DIR = $(PROJECT_DIR)/$(BUILD_DIR)
-CARGO_ARGS = --target-dir '$(CARGO_DIST_DIR)' -Z unstable-options --out-dir '$(CARGO_COPYOUT_DIR)'
+CARGO_ARGS = --target-dir '$(CARGO_DIST_DIR)' -Z unstable-options --artifact-dir '$(CARGO_COPYOUT_DIR)'
 LIB_KERNEL = $(CARGO_DIST_DIR)/riscv64gc-unknown-none-elf/$(CARGO_MODE)/libkernel.a
 
-QEMU_RUN_ARGS = -nographic -machine virt -m $(QEMU_MEMORY_SIZE)
+QEMU_RUN_ARGS = -nographic -machine virt -m $(QEMU_MEMORY_SIZE) -append "console=ttyS0"
 
 ifeq ($(QEMU_SET_BIOS),true)
 	QEMU_RUN_ARGS += -bios $(QEMU_SET_BIOS_CONFIG)
@@ -90,10 +90,10 @@ dump: $(OS_DUMP)
 
 
 run: $(OS_BIN) dump
-	@qemu-system-riscv64 $(QEMU_RUN_ARGS) -kernel $<
+	qemu-system-riscv64 $(QEMU_RUN_ARGS) -kernel $(OS_BIN)
 
 debug: $(OS_BIN) dump
-	@qemu-system-riscv64 $(QEMU_RUN_ARGS) -kernel $< -s -S
+	@qemu-system-riscv64 $(QEMU_RUN_ARGS) -kernel $(OS_BIN) -s -S
 
 
 GDB := riscv64-elf-gdb
@@ -112,3 +112,9 @@ export BUILD_DIR CC CARGO_ARGS CARGO_COPYOUT_DIR KernelSrcDir
 
 ram:
 	make -C test
+
+SERVER ?= 127.0.0.1:8000
+TIME_LIMIT ?= 25
+
+submit: $(OS_BIN)
+	curl --fail --show-error --silent -X POST $(SERVER)/submit -F "time_limit=$(TIME_LIMIT)" -F "file=@$(OS_BIN)"
