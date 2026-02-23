@@ -36,6 +36,7 @@ use xmas_elf::ElfFile;
 mod user;
 
 use core::mem;
+use core::ptr::addr_of;
 use core::{alloc::Layout, arch::asm};
 
 pub use crate::arch::shutdown;
@@ -54,9 +55,7 @@ pub static mut dtb_addr: usize = 0;
 
 use crate::config::*;
 
-
-
-fn fix_rela_dyn(base_addr: usize) {
+fn fix_rela_dyn(base_addr: usize, rela_offset: usize) {
 	#[repr(C)]
 	struct RelaDynEntry {
 		r_offset: usize,
@@ -69,9 +68,9 @@ fn fix_rela_dyn(base_addr: usize) {
 		let mut p = rela_start as *const RelaDynEntry;
 		while (p as usize) < rela_end {
 			let e = &*p;
-			let to_write = e.r_offset as *mut usize;
+			let to_write = (e.r_offset + base_addr) as *mut usize;
 			if e.r_info == 0x3 {
-				*to_write = base_addr + e.r_addend as usize;
+				*to_write = base_addr + rela_offset + e.r_addend as usize;
 			}
 			p = p.add(1);
 		}
@@ -87,13 +86,13 @@ pub extern "C" fn kmain_early() {
 			uart_reg_shift,
 		)
 	};
-	// printk(b"kmain_early started\n");
-	fix_rela_dyn(0x00000000);
+	let base_addr = addr_of!(kernel_load_base) as usize;
+	fix_rela_dyn(base_addr, 0);
 	success!("start kmain early init");
-	mm::simple_allocator.init(ekernel as usize);
+	mm::simple_allocator.init(ekernel as *const () as usize);
 	mm::vm::init_kvm();
 	success!("end kmain early init");
-	fix_rela_dyn(unsafe { kvm_config.v2p_offset_text });
+	fix_rela_dyn(base_addr, unsafe { kvm_config.v2p_offset_text });
 }
 
 #[no_mangle]

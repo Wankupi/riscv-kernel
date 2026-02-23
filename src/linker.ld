@@ -1,12 +1,13 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-PHYS_RAM_BASE = 0x80000000;
+PHYS_RAM_BASE = 0x00000000;
 TEXT_OFFSET = 0x00200000;
 
 SECTIONS
 {
     . = PHYS_RAM_BASE + TEXT_OFFSET;
     skernel = .;
+    kernel_load_base = . - TEXT_OFFSET;
 
     stext = .;
     .text : {

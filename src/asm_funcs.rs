@@ -19,6 +19,7 @@ extern "C" {
 	pub fn _switch(from: &mut Context, to: &mut Context);
 	pub fn _copy_u_s(src: *mut u8, dst: *mut u8, len: usize, user_satp: usize) -> isize;
 	pub fn _wait_for_interrupt(sie: usize);
+	pub static kernel_load_base: u8;
 }
 
 pub fn copy_u_s(src: *mut u8, dst: *mut u8, len: usize, user_satp: usize) -> isize {
