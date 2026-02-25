@@ -77,6 +77,9 @@ impl UartRaw {
 		// self.store(ier, 1 | (1 << 1));
 		self.store(ier, 1);
 	}
+	pub fn base_addr(&self) -> usize {
+		unsafe { *self.base.get() as usize }
+	}
 	pub fn write(&self, data: u8) {
 		const LSR_THR_EMPTY: u8 = 1 << 5;
 		while (self.load(lsr) & LSR_THR_EMPTY) == 0 {}

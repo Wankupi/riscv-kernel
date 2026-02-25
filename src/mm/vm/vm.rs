@@ -1,4 +1,5 @@
 use super::{PageTableEntry, VirtMapPage, PTE};
+use crate::driver::uart::uart_device;
 use crate::{asm_funcs::*, config::*, mm::allocator::simple_allocator};
 use core::{num::Wrapping, panic};
 
@@ -29,24 +30,35 @@ pub fn init_kvm() {
 	unsafe {
 		kvm_config.satp = k_vt.to_satp();
 		kvm_config.v2p_offset_text = 0;
-		kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
+		// kvm_config.v2p_offset_text = 0xffff_ffff_0000_0000;
 	}
 	// kernel source code
-	kvm_map_early(stext as *const () as usize, etext as *const () as usize, PTE::R | PTE::X);
-	// kernel rodata
-	kvm_map_early(srodata as *const () as usize, erodata as *const () as usize, PTE::R);
-	// kernel data
-	kvm_map_early(sdata as *const () as usize, edata as *const () as usize, PTE::R | PTE::W);
-	// kernel bss ( with stack )
-	kvm_map_early(sbss as *const () as usize, ebss as *const () as usize, PTE::R | PTE::W);
-	// uart device
-	vm_map(
-		k_vt,
-		uart_base_addr as usize,
-		uart_base_addr as usize,
-		PAGE_SIZE,
-		PTE::R | PTE::W | PTE::X,
+	kvm_map_early(
+		stext as *const () as usize,
+		etext as *const () as usize,
+		PTE::R | PTE::X,
 	);
+	// kernel rodata
+	kvm_map_early(
+		srodata as *const () as usize,
+		erodata as *const () as usize,
+		PTE::R,
+	);
+	// kernel data
+	kvm_map_early(
+		sdata as *const () as usize,
+		edata as *const () as usize,
+		PTE::R | PTE::W,
+	);
+	// kernel bss ( with stack )
+	kvm_map_early(
+		sbss as *const () as usize,
+		ebss as *const () as usize,
+		PTE::R | PTE::W,
+	);
+	// uart device
+	let uart_pa = unsafe { uart_device.base_addr() };
+	vm_map(k_vt, uart_pa, uart_pa, PAGE_SIZE, PTE::R | PTE::W | PTE::X);
 	// shutdown io
 	vm_map(
 		k_vt,
@@ -101,19 +113,30 @@ fn vt_next_level(vt: &mut VirtMapPage, vindex: usize) -> &mut VirtMapPage {
 }
 
 fn vm_level2(vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
+	let flags = normalize_leaf_flags(flags);
 	let entry = vt_get_entry(vt, va >> (12 + 9 + 9) & 0x1ff);
 	*entry = PageTableEntry::from_phys_addr(pa) | flags | PTE::V;
 }
 fn vm_level1(mut vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
+	let flags = normalize_leaf_flags(flags);
 	vt = vt_next_level(vt, va >> (12 + 9 + 9) & 0x1ff);
 	let entry = vt_get_entry(vt, va >> (12 + 9) & 0x1ff);
 	*entry = PageTableEntry::from_phys_addr(pa) | flags | PTE::V;
 }
 fn vm_level0(mut vt: &mut VirtMapPage, va: usize, pa: usize, flags: PTE) {
+	let flags = normalize_leaf_flags(flags);
 	vt = vt_next_level(vt, (va >> (12 + 9 + 9)) & 0x1ff);
 	vt = vt_next_level(vt, (va >> (12 + 9)) & 0x1ff);
 	let entry = vt_get_entry(vt, (va >> 12) & 0x1ff);
 	*entry = PageTableEntry::from_phys_addr(pa) | flags | PTE::V;
+}
+
+fn normalize_leaf_flags(flags: PTE) -> PTE {
+	let mut f = flags | PTE::A;
+	if flags.contains(PTE::W) {
+		f |= PTE::D;
+	}
+	f
 }
 
 /// @param [start, end)

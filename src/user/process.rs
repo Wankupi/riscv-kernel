@@ -9,9 +9,10 @@ use xmas_elf::{
 use crate::{
 	alloc,
 	arch::trap::kernel_trap_entry,
+	driver::uart::{self, uart_device},
 	lang::memcpy,
 	mm::vm::{get_kernel_satp, vm_map, vm_map_trampoline, VirtMapPage, PTE},
-	uart_base_addr, PAGE_SIZE,
+	PAGE_SIZE,
 };
 
 use super::trapframe::TrapFrame;
@@ -95,6 +96,7 @@ pub fn create_process(elf_data: &[u8]) -> Result<Box<Process>, &'static str> {
 		PAGE_SIZE,
 		PTE::RW | PTE::U,
 	);
+	let uart_base_addr = unsafe { uart_device.base_addr() };
 	vm_map(
 		&mut process.pagetable,
 		uart_base_addr,
@@ -136,6 +138,7 @@ fn create_pagetable_from_elf(elf: &ElfFile) -> (Box<VirtMapPage>, Vec<Section>) 
 		sections.push(section);
 	}
 	// special
+	let uart_base_addr = unsafe { uart_device.base_addr() };
 	vm_map(vt, uart_base_addr, uart_base_addr, 4096, PTE::RW | PTE::U);
 	return (vt_box, sections);
 }
