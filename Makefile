@@ -114,7 +114,11 @@ ram:
 	make -C test
 
 SERVER ?= 127.0.0.1:8000
-TIME_LIMIT ?= 25
+TIME_LIMIT ?= 20
 
 submit: $(OS_BIN)
-	curl --fail --show-error --silent -X POST $(SERVER)/submit -F "time_limit=$(TIME_LIMIT)" -F "file=@$(OS_BIN)"
+	id=$$(curl --fail --show-error --silent -X POST $(SERVER)/submit \
+		-F "time_limit=$(TIME_LIMIT)" \
+		-F "file=@$(OS_BIN)" | jq -r .id); \
+	echo "Task ID: $$id"; \
+	curl --fail --show-error --silent $(SERVER)/result/$$id
