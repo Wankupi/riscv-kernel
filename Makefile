@@ -45,7 +45,7 @@ endif
 
 # find source files
 RUST_FILES = $(shell find $(SRC_DIR) -name '*.rs')
-ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
+ASM_FILES = $(filter-out $(SRC_DIR)/user/elf.gen.S,$(shell find $(SRC_DIR) -name '*.S'))
 C_FILES = $(shell find $(SRC_DIR) -name '*.c')
 
 # dist files
@@ -75,9 +75,15 @@ $(C_TARGETS): $(BUILD_DIR)/%.o: %.c
 $(LIB_KERNEL): user $(RUST_FILES) .cargo/config.toml Cargo.toml
 	@$(CARGO) build $(CARGO_ARGS)
 
-$(OS_ELF): $(SRC_DIR)/linker.ld $(ASM_TARGETS) $(LIB_KERNEL) $(C_TARGETS)
+# 显式编译动态生成的 elf.gen.S（在 ASM_FILES 计算时还未存在）
+ELF_GEN_O = $(BUILD_DIR)/src/user/elf.gen.o
+$(ELF_GEN_O): $(SRC_DIR)/user/elf.gen.S | user
+	@mkdir -p $(dir $@)
+	@$(CC) -c $< -o $@ -g -I $(SRC_DIR) ${COMMON_FLAGS}
+
+$(OS_ELF): $(SRC_DIR)/linker.ld $(ASM_TARGETS) $(LIB_KERNEL) $(C_TARGETS) $(ELF_GEN_O) | user
 	@mkdir -p $(BUILD_DIR)
-	@$(LD) $(LINK_CONFIG) -T $^ -o $@
+	@$(LD) $(LINK_CONFIG) -T $(SRC_DIR)/linker.ld $(ASM_TARGETS) $(ELF_GEN_O) $(LIB_KERNEL) $(C_TARGETS) -o $@
 
 $(OS_BIN): $(OS_ELF)
 	@$(OBJCOPY) --strip-all $< -O binary $@
