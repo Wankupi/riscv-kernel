@@ -105,7 +105,7 @@ clean:
 	@make -C user_program clean
 	@rm -rf $(BUILD_DIR)
 
-.PHONY: all clean dump run debug gdb user
+.PHONY: all clean dump run debug gdb user submit result
 
 KernelSrcDir = $(PROJECT_DIR)/$(SRC_DIR)
 export BUILD_DIR CC CARGO_ARGS CARGO_COPYOUT_DIR KernelSrcDir
@@ -113,12 +113,21 @@ export BUILD_DIR CC CARGO_ARGS CARGO_COPYOUT_DIR KernelSrcDir
 ram:
 	make -C test
 
-SERVER ?= 127.0.0.1:8000
+SERVER ?= www.wankupi.top:8080
 TIME_LIMIT ?= 20
+SUBMISSIONS_FILE ?= .submissions
+TASK_ID ?=
 
 submit: $(OS_BIN)
 	id=$$(curl --fail --show-error --silent -X POST $(SERVER)/submit \
 		-F "time_limit=$(TIME_LIMIT)" \
-		-F "file=@$(OS_BIN)" | jq -r .id); \
-	echo "Task ID: $$id"; \
+		-F "file=@$(OS_BIN)" | jq -r .id) && \
+	echo "$$id" >> $(SUBMISSIONS_FILE) && \
+	echo "Task ID: $$id"
+
+result:
+	id="$(TASK_ID)"; \
+	if [ -z "$$id" ]; then \
+		id=$$(tail -n 1 $(SUBMISSIONS_FILE)); \
+	fi; \
 	curl --fail --show-error --silent $(SERVER)/result/$$id

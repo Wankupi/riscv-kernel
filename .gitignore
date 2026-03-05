@@ -10,3 +10,4 @@ test/
 *.gen*
 src/user/elf_funcs_gen.rs
 src/user/elf.gen.S
+.submissions
