@@ -23,7 +23,6 @@ mod irq;
 mod lang;
 mod mm;
 mod sync;
-mod test;
 
 use alloc::boxed::Box;
 use alloc::string::String;
@@ -38,11 +37,10 @@ mod user;
 use core::mem;
 use core::ptr::addr_of;
 use core::{alloc::Layout, arch::asm};
-use fdt::Fdt;
 
 pub use crate::arch::shutdown;
 use crate::arch::{get_tp, set_timer};
-use crate::driver::fdt::{init_fdt, init_stdout};
+use crate::driver::fdt;
 use crate::lang::memset;
 use crate::mm::vm::kvm_config;
 use crate::print::{print_hex, printk};
@@ -77,12 +75,13 @@ fn fix_rela_dyn(base_addr: usize, rela_offset: usize) {
 
 #[no_mangle]
 pub extern "C" fn kmain_early(core_id: usize, dtb_addr: *const u8) {
-	init_fdt(dtb_addr);
-	init_stdout();
+	fdt::init_fdt_early(dtb_addr);
+	driver::uart::init_stdout_from_fdt();
 	let base_addr = addr_of!(kernel_load_base) as usize;
 	fix_rela_dyn(base_addr, 0);
 	success!("start kmain early init on core {}", core_id);
 	mm::simple_allocator.init(ekernel as *const () as usize);
+	fdt::fdt_move_to_owned();
 	mm::vm::init_kvm();
 	success!("end kmain early init");
 	fix_rela_dyn(base_addr, unsafe { kvm_config.v2p_offset_text });
@@ -91,17 +90,12 @@ pub extern "C" fn kmain_early(core_id: usize, dtb_addr: *const u8) {
 #[no_mangle]
 pub extern "C" fn kmain() {
 	trap_init();
-	test::test_dynamic_function();
 	success!("start kmain");
-	unsafe {
-		mm::buddy_allocator.init(mm::simple_allocator.get_control_range().1, 0x84000000);
-	}
+	fdt::init_fdt();
 	mm::change_to_buddy();
-	// test::test_buddy();
 	IPC::msg::init();
 	irq::plic_init();
 	println!("hello");
-	// test_elf();
 	shutdown();
 }
 

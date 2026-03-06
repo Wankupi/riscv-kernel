@@ -44,7 +44,7 @@ impl SimpleAllocator {
 			start = (start + (PAGE_SIZE - 1)) & !(PAGE_SIZE - 1);
 			self.next.get().write(start);
 			self.start.get().write(start);
-			let end: usize = 0x81000000;
+			let end: usize = start + 512 * 4096;
 			self.end.get().write(end);
 			log!(
 				"SimpleAllocator: init: start: {:#x}, end: {:#x} ({} blocks)",

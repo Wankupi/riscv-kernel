@@ -14,6 +14,8 @@ use core::cell::UnsafeCell;
 
 use uart_regs::*;
 
+use crate::driver::fdt;
+
 pub struct UartRaw {
 	base: UnsafeCell<*const u8>,
 	io_width: UnsafeCell<usize>,
@@ -114,3 +116,20 @@ impl UartRaw {
 unsafe impl Sync for UartRaw {}
 
 pub static mut uart_device: UartRaw = UartRaw::new(core::ptr::null());
+
+pub fn init_stdout_from_fdt() {
+	let fdt = fdt::get_fdt();
+	let stdout = fdt.find_node("serial0").unwrap();
+	let mem_region = stdout.reg().unwrap().next().unwrap();
+	let io_width = stdout.property("reg-io-width").map_or(1, |p| {
+		let bytes: [u8; 4] = p.value.try_into().unwrap();
+		u32::from_be_bytes(bytes) as usize
+	});
+	let reg_shift = stdout.property("reg-shift").map_or(0, |p| {
+		let bytes: [u8; 4] = p.value.try_into().unwrap();
+		u32::from_be_bytes(bytes) as usize
+	});
+	unsafe {
+		uart_device.init_with_config(mem_region.starting_address, io_width, reg_shift);
+	}
+}

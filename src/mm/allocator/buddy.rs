@@ -110,13 +110,13 @@ impl BuddyAllocator {
 		}
 		list.next = meta;
 	}
-	pub fn init_lists(&mut self) {
+	fn init_lists(&mut self) {
 		for i in 0..=MAX_ORDER {
 			self.lists[i].last = 0 as *mut MemAreaStatus;
 			self.lists[i].next = 0 as *mut MemAreaStatus;
 		}
 	}
-	pub fn init_bitmap(&mut self, blocks: usize, current_start: &mut usize) {
+	fn init_bitmap(&mut self, blocks: usize, current_start: &mut usize) {
 		for i in 0..MAX_ORDER {
 			let block_cnt = blocks >> (i + 1);
 			let addr = *current_start;
@@ -124,12 +124,12 @@ impl BuddyAllocator {
 			*current_start += use_mem;
 		}
 	}
-	pub fn init_nodes_mem(&mut self, blocks: usize, current_start: &mut usize) {
+	fn init_nodes_mem(&mut self, blocks: usize, current_start: &mut usize) {
 		*current_start = (*current_start + size_of::<usize>() - 1) & !(size_of::<usize>() - 1);
 		self.meta.init(*current_start as *mut MemAreaStatus);
 		*current_start += blocks * size_of::<MemAreaStatus>();
 	}
-	pub fn init_add_nodes(&mut self, blocks: usize) {
+	fn init_add_nodes(&mut self, blocks: usize) {
 		let mut current_start: usize = 0;
 		for i in (0..=MAX_ORDER).rev() {
 			let block_cnt = 1 << i;
@@ -182,7 +182,7 @@ impl BuddyAllocator {
 	}
 	fn _down_block(&self, order: usize) {
 		if order > MAX_ORDER {
-			panic!("order too large");
+			panic!("order too large: {}", order);
 		}
 		let head = self.get_list_head(order);
 		if head.next == 0 as *mut MemAreaStatus {

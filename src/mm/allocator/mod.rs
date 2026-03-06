@@ -7,6 +7,8 @@ use simple::SimpleAllocator;
 pub static simple_allocator: SimpleAllocator = SimpleAllocator::new();
 
 use buddy::BuddyAllocator;
+
+use crate::driver::fdt::get_fdt;
 #[global_allocator]
 pub static mut buddy_allocator: BuddyAllocator = BuddyAllocator::new();
 
@@ -58,7 +60,9 @@ pub fn dealloc_size(ptr: *mut u8, size: usize) {
 }
 
 pub fn change_to_buddy() {
+	let region = get_fdt().memory().regions().next().unwrap();
 	unsafe {
+		buddy_allocator.init(simple_allocator.get_control_range().1, region.starting_address.wrapping_add(region.size.unwrap()) as usize);
 		use_buddy = true;
 	}
 }
