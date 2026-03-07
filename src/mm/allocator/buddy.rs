@@ -49,7 +49,7 @@ impl BuddyAllocator {
 			mutex: SpinLock::new(),
 		}
 	}
-	fn estimate_meta_size(size: usize) -> usize {
+	pub fn estimate_meta_size(size: usize) -> usize {
 		let blocks = size >> PAGE_SIZE_BITS;
 		// bitmap
 		// blocks * (1 + 1/2 + 1/4 + ...)
@@ -146,6 +146,7 @@ impl BuddyAllocator {
 			phys_begin, phys_end, size
 		);
 		let meta_size = Self::estimate_meta_size(size);
+		info!("buddy allocator meta size: {:x}", meta_size);
 		let meta_ptr = crate::mm::alloc(Layout::from_size_align(meta_size, 8).unwrap());
 		let available_size = size;
 		let available_blocks = available_size >> PAGE_SIZE_BITS;

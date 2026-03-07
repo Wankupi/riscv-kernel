@@ -42,8 +42,7 @@ SECTIONS
 		__rela_dyn_end = .;
 	}
     edata = .;
-
-    ekernel = .;
+    ekernel_image = .;
 
     . = ALIGN(4K);
     sbss = .;
@@ -54,6 +53,7 @@ SECTIONS
     }
     ebss = .;
 
+    ekernel = .;
     . = ALIGN(4K);
 
     /DISCARD/ : {

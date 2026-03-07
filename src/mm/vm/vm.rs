@@ -1,4 +1,5 @@
 use super::{PageTableEntry, VirtMapPage, PTE};
+use crate::driver::fdt;
 use crate::driver::uart::uart_device;
 use crate::{asm_funcs::*, config::*, mm::allocator::simple_allocator};
 use core::{num::Wrapping, panic};
@@ -67,14 +68,6 @@ pub fn init_kvm() {
 		PAGE_SIZE,
 		PTE::R | PTE::W,
 	);
-	let simple_allocator_range = simple_allocator.get_control_range();
-	vm_map(
-		k_vt,
-		simple_allocator_range.0,
-		simple_allocator_range.0,
-		simple_allocator_range.1 - simple_allocator_range.0,
-		PTE::R | PTE::W,
-	);
 	vm_map(
 		k_vt,
 		0xffffffff_ffff_f000,
@@ -82,12 +75,15 @@ pub fn init_kvm() {
 		4096,
 		PTE::R | PTE::X,
 	);
+	let ekernel_align = (ekernel as *const () as usize + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+	let mem = fdt::get_fdt().memory().regions().next().unwrap();
+	let mem_end = mem.starting_address.wrapping_add(mem.size.unwrap());
 	// direct map physical memory
 	vm_map(
 		k_vt,
-		simple_allocator_range.1,
-		simple_allocator_range.1,
-		1024 * 1024 * 128,
+		ekernel_align,
+		ekernel_align,
+		mem_end as usize - ekernel_align,
 		PTE::R | PTE::W,
 	);
 	vm_map(k_vt, PLIC, PLIC, 0x400_0000, PTE::R | PTE::W);

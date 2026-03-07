@@ -41,7 +41,6 @@ use core::{alloc::Layout, arch::asm};
 pub use crate::arch::shutdown;
 use crate::arch::{get_tp, set_timer};
 use crate::driver::fdt;
-use crate::lang::memset;
 use crate::mm::vm::kvm_config;
 use crate::print::{print_hex, printk};
 use asm_funcs::*;
@@ -51,40 +50,22 @@ pub use mm::{alloc, dealloc};
 use crate::config::*;
 use crate::{arch::trap::trap_init, mm::vm::vm_map_trampoline};
 
-fn fix_rela_dyn(base_addr: usize, rela_offset: usize) {
-	#[repr(C)]
-	struct RelaDynEntry {
-		r_offset: usize,
-		r_info: usize,
-		r_addend: isize,
-	}
-	let rela_start = core::ptr::addr_of!(__rela_dyn_start) as usize;
-	let rela_end = core::ptr::addr_of!(__rela_dyn_end) as usize;
-	unsafe {
-		let mut p = rela_start as *const RelaDynEntry;
-		while (p as usize) < rela_end {
-			let e = &*p;
-			let to_write = (e.r_offset + base_addr) as *mut usize;
-			if e.r_info == 0x3 {
-				*to_write = base_addr + rela_offset + e.r_addend as usize;
-			}
-			p = p.add(1);
-		}
-	}
-}
-
 #[no_mangle]
 pub extern "C" fn kmain_early(core_id: usize, dtb_addr: *const u8) {
 	fdt::init_fdt_early(dtb_addr);
 	driver::uart::init_stdout_from_fdt();
 	let base_addr = addr_of!(kernel_load_base) as usize;
-	fix_rela_dyn(base_addr, 0);
+	lang::fix_rela_dyn(base_addr, 0);
 	success!("start kmain early init on core {}", core_id);
-	mm::simple_allocator.init(ekernel as *const () as usize);
+	mm::simple_allocator.init(
+		(ekernel as *const () as usize + PAGE_SIZE - 1) & !(PAGE_SIZE - 1),
+		PAGE_SIZE * 2,
+	);
 	fdt::fdt_move_to_owned();
+	mm::allocator::pre_alloc_buddy();
 	mm::vm::init_kvm();
 	success!("end kmain early init");
-	fix_rela_dyn(base_addr, unsafe { kvm_config.v2p_offset_text });
+	lang::fix_rela_dyn(base_addr, unsafe { kvm_config.v2p_offset_text });
 }
 
 #[no_mangle]
@@ -93,6 +74,7 @@ pub extern "C" fn kmain() {
 	success!("start kmain");
 	fdt::init_fdt();
 	mm::change_to_buddy();
+	mm::simple_allocator.dbg_report();
 	IPC::msg::init();
 	irq::plic_init();
 	println!("hello");

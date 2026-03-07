@@ -1,7 +1,12 @@
-use crate::sync::{LockGuard, SpinLock};
+use crate::{
+	config::PAGE_SIZE,
+	mm::allocator::use_buddy,
+	sync::{LockGuard, SpinLock},
+};
 use core::{
 	alloc::{GlobalAlloc, Layout},
 	cell::UnsafeCell,
+	cmp::max,
 };
 
 pub struct SimpleAllocator {
@@ -21,8 +26,11 @@ unsafe impl GlobalAlloc for SimpleAllocator {
 		let ret = (*self.next.get() + align - 1) & !(align - 1);
 		self.next.get().write(ret + layout.size());
 		if self.next.get().read() > self.end.get().read() {
-			self.dbg_report();
-			panic!("SimpleAllocator OOM {:x}, align {}", layout.size(), align);
+			if use_buddy {
+				self.dbg_report();
+				panic!("SimpleAllocator OOM {:x}, align {}", layout.size(), align);
+			}
+			self.enlarge(0);
 		}
 		return ret as *mut u8;
 	}
@@ -38,19 +46,20 @@ impl SimpleAllocator {
 			mutex: SpinLock::new(),
 		};
 	}
-	pub fn init(&self, mut start: usize) {
+	pub fn init(&self, start: usize, size: usize) {
 		unsafe {
 			use crate::PAGE_SIZE;
-			start = (start + (PAGE_SIZE - 1)) & !(PAGE_SIZE - 1);
+			let check_aligned = |x: usize| x & (PAGE_SIZE - 1) == 0;
+			let end: usize = start + size;
+			assert!(check_aligned(start) && check_aligned(end));
 			self.next.get().write(start);
 			self.start.get().write(start);
-			let end: usize = start + 512 * 4096;
 			self.end.get().write(end);
 			log!(
 				"SimpleAllocator: init: start: {:#x}, end: {:#x} ({} blocks)",
 				start,
 				end,
-				(end - start) / PAGE_SIZE
+				size / PAGE_SIZE
 			);
 		}
 	}
@@ -66,5 +75,19 @@ impl SimpleAllocator {
 			used,
 			have - used
 		);
+	}
+	pub fn can_alloc(&self, layout: Layout) -> bool {
+		let align = layout.align();
+		let _lock = LockGuard::new(&self.mutex);
+		unsafe {
+			let ret = (*self.next.get() + align - 1) & !(align - 1);
+			ret + layout.size() <= self.end.get().read()
+		}
+	}
+	pub unsafe fn enlarge(&self, size: usize) {
+		assert!(!use_buddy);
+		let new_end = max(self.next.get().read() + size, self.end.get().read());
+		let new_end_aligned = (new_end + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+		self.end.get().write(new_end_aligned);
 	}
 }

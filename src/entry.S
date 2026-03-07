@@ -1,6 +1,6 @@
 # Linker Constants
     .extern    skernel
-    .extern    ekernel
+    .extern    ekernel_image
     .extern    TEXT_OFFSET
 # External Symbols
     .extern    kmain_early
@@ -14,7 +14,7 @@ _start:
     j          _start
     .balign    8
     .quad      TEXT_OFFSET /* text_offset */
-    .quad      ekernel - skernel /* image_size */
+    .quad      ekernel_image - skernel /* image_size */
     .quad      0 /* flags */
     .word      2 /* version */
     .word      0 /* res1 */
